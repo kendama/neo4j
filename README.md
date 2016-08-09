@@ -17,9 +17,6 @@ MATCH (n:Entity) RETURN count(n)
 Return ratio of activities to entity
 MATCH (n:Activity) WITH toFloat(count(n)) as num MATCH (m:Entity) RETURN num/count(m)
 
-Return percentage of entities have provenance
-MATCH (n:Activity) WITH toFloat(count(n)) as num MATCH (m:Entity) RETURN num/count(m)
-
 Use known annotation/property value to find a particular node
 MATCH (n {annotationName:"VALUE"}) RETURN n
 or
