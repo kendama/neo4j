@@ -14,25 +14,27 @@ aQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "{0}" AS dvs
     WITH dvs WHERE NOT dvs.concreteType = "activity"
-       MERGE (entity:Entity {id:dvs._id}) ON CREATE
+       MERGE (entity:Entity {{id:dvs._id}}) ON CREATE
        SET entity = dvs
 """
 bQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "{0}" AS dvs
     WITH dvs WHERE dvs.concreteType = "activity"
-       MERGE (activity:Activity {id:dvs._id}) ON CREATE
+       MERGE (activity:Activity {{id:dvs._id}}) ON CREATE
        SET activity = dvs
 """
 cQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "{0}" AS erow
-    MATCH (in_node { _id:erow._inV })
-    MATCH (out_node { _id:erow._outV })
-    MERGE (out_node)<-[:USED { action:erow._label, id:erow._id }]-(in_node)
+    MATCH (in_node {{ _id:erow._inV }})
+    MATCH (out_node {{ _id:erow._outV }})
+    MERGE (out_node)<-[:USED {{ action:erow._label, id:erow._id }}]-(in_node)
 """
 
 def json2neo4j(jsonfilename):
+    graph = Graph()
+    global aQuery, bQuery, cQuery
     # Retrieve JSON/CSV file
     print 'Creating temporary JSON/CSV file'
     logging.info('Creating temporary JSON/CSV file')
