@@ -1,9 +1,12 @@
+import sys
 import synapseclient
-import json
 from collections import OrderedDict
 import multiprocessing.dummy as mp
 import threading
+import json2neo4j
+import argparse
 import logging
+import json
 
 syn = synapseclient.login()
 
@@ -48,8 +51,8 @@ counter2 = idGenerator()
 
 def getEntities(projectId):
     '''get and format all entities with the inputted projectId'''
-    logging.info('Getting and formatting all entities from %s' %projectId)
-    query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
+    logging.info('Getting and formatting all entities with the inputted projectId')
+    query = syn.chunkedQuery('select * from entity where projectId =="%s"' %projectId)
     entityDict = dict()
     for ent in query:
         if ent['entity.nodeType'] in [2,3,4]: 
@@ -66,6 +69,8 @@ def getEntities(projectId):
         entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
         print 'getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
                                              ent['versionNumber'])
+        logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
+                                             ent['versionNumber']))
     return entityDict
 
 def safeGetActivity(entity):
@@ -73,7 +78,7 @@ def safeGetActivity(entity):
     k, ent = entity
     try:
         print 'Getting Provenance for:', k, counter2.next()
-        logging.info('Retrieving activity/provenance for:', k, counter2.next())
+        logging.info('Getting Provenance for:', k, counter2.next())
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
@@ -81,6 +86,7 @@ def safeGetActivity(entity):
 
 def cleanUpActivities(activities):
     '''remove all activity-less entities'''
+    logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
         print 'Cleaning up activity: %s' % k
@@ -156,21 +162,60 @@ def buildEdgesfromActivities(nodes, activities):
 
 
 if __name__ == '__main__':
-    p = mp.Pool(7)
-    projects = syn.chunkedQuery("select id from project")
-    nodes = dict()
+    parser = argparse.ArgumentParser(description=
+                'Please input the [1] synapse ID or space-separated list of synapse ID and the [2] name of json outfile to graph provenance')
+    parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
+    parser.add_argument('--j', help='Input name of json outfile')
+    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
+    args = parser.parse_args()
+    print args.id
 
-    for proj in projects:
-        print 'Getting entities from %s' %proj['project.id']
-        nodes.update( getEntities( benefactorId = str(proj['project.id']) ) )
-        print 'Fetched %i entities' %len(nodes)
+    
+    if len(sys.argv) < 2:
+        print 'Incorrect number of arguments'
+        sys.exit(1)
 
-    activities = p.map(safeGetActivity, nodes.items())
-    activities = cleanUpActivities(activities)
-    print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
+    else:
+        syn = synapseclient.Synapse()
+        syn.login()
+
+        proj_inputs = args.id
+        
+        if args.j:
+	    json_file = args.j
+        else:
+            json_file = 'graph.json'
+
+        if args.p:
+            p = mp.Pool(args.p)
+        else:  
+            p = mp.Pool()
+
+        nodes = dict()
+        for proj in proj_inputs:
+            print 'Getting entities from %s' %proj
+            nodes.update(getEntities(projectId = proj))
+            print 'Fetched %i entities' %len(nodes)
+
+        activities = p.map(safeGetActivity, nodes.items())
+        activities = cleanUpActivities(activities)
+        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities), 
                                                                         float(len(nodes))/len(activities))
-    edges = buildEdgesfromActivities(nodes, activities)
-    print 'I have  %i nodes and %i edges' %(len(nodes), len(edges))
-    with open('graph.json', 'w') as fp:
-        json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
+        edges = buildEdgesfromActivities(nodes, activities)
+        print 'I have  %i nodes and %i edges' %(len(nodes), len(edges))
+        with open(json_file, 'w') as fp:
+            json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
+        print 'Connecting to Neo4j and authenticating user credentials'
+        with open('credentials.json') as json_file:
+            db_info=json.load(json_file)
+        authenticate(db_info['machine'], db_info['username'], db_info['password'])
+        db_dir = db_info['machine'] + "/db/data"
+        graph = Graph(db_dir)
+
+        #function not completed
+	#try:
+            #json2neo4j(json_file)
+        #except:
+	    #print 'Error involving loading data from json file to Neo4j database'
+            #pass
