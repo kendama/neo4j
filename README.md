@@ -1,6 +1,6 @@
 # Neo4j
 
-### Useful Cypher queries for Neo4j Database
+## Useful Cypher queries for Neo4j Database
 
 Return a list with the name of all activities
 MATCH (n:Activity) RETURN n.name
