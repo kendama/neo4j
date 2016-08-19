@@ -2,32 +2,32 @@
 
 ## Useful Cypher queries for Neo4j Database
 
-#### Return a list with the name of all activities
+### Return a list with the name of all activities
 
 MATCH (n:Activity) RETURN n.name
 
 
-#### Return a list with the name of all entities
+### Return a list with the name of all entities
 
 MATCH (n:Entity) RETURN n.name
 
 
-#### Return a count of all activities
+### Return a count of all activities
 
 MATCH (n:Activity) RETURN count(n)
 
 
-#### Return a count of all activities
+### Return a count of all activities
 
 MATCH (n:Entity) RETURN count(n)
 
 
-#### Return ratio of activities to entity
+### Return ratio of activities to entity
 
 MATCH (n:Activity) WITH toFloat(count(n)) as num MATCH (m:Entity) RETURN num/count(m)
 
 
-#### Use known annotation/property value to find a particular node
+### Use known annotation/property value to find a particular node
 
 MATCH (n {annotationName:"VALUE"}) RETURN n
 
@@ -40,7 +40,7 @@ Example - display all activities, entities, and their relationships stemming fro
 MATCH p = (n {createdBy: "#######"})<-[*]-(m) RETURN DISTINCT p, collect(m)
 
 
-#### Who is generating the most activity
+### Who is generating the most activity
 
 START n = node(*) 
 MATCH (n)--(c) WHERE EXISTS(n.createdBy)
@@ -49,12 +49,12 @@ ORDER BY connections DESC
 LIMIT 10
 
 
-#### Display all provenance leading back to origin
+### Display all provenance leading back to origin
 
 MATCH p = (n {synId:”#######”})<-[*]-(m) RETURN DISTINCT p
 
 
-#### Display the top ten node of highest degree
+### Display the top ten node of highest degree
 
 START n = node(*) 
 MATCH (n)--(c)
@@ -63,7 +63,7 @@ ORDER BY connections DESC
 LIMIT 10
 
 
-#### Display the most used entity/activity
+### Display the most used entity/activity
 
 START n = node(*) 
 MATCH (n)<--(c)
@@ -72,7 +72,7 @@ ORDER BY connections DESC
 LIMIT 10
 
 
-#### Display the most dependent entity/activity
+### Display the most dependent entity/activity
 
 START n = node(*) 
 MATCH (n)-- >(c)
@@ -81,7 +81,7 @@ ORDER BY connections DESC
 LIMIT 10
 
 
-#### Poor man’s recommendation engine
+### Poor man’s recommendation engine
 MATCH (n {createdBy:"YourOriginalID"})-->(c)
 MATCH (m)-->(c) WHERE NOT m.createdBy = "YourOriginalID"
 WITH m.createdBy as cb
