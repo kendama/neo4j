@@ -40,8 +40,13 @@ Example - display all activities, entities, and their relationships stemming fro
 MATCH p = (n {createdBy: "#######"})<-[*]-(m) RETURN DISTINCT p, collect(m)
 
 
-#### Who is creating these provenance
-???????
+#### Who is generating the most activity
+
+START n = node(*) 
+MATCH (n)--(c) WHERE EXISTS(n.createdBy)
+RETURN n.createdBy, count(*) as connections
+ORDER BY connections DESC
+LIMIT 10
 
 
 #### Display all provenance leading back to origin
@@ -67,10 +72,6 @@ ORDER BY connections DESC
 LIMIT 10
 
 
-#### A more dependent file
-???????
-
-
 #### Display the most dependent entity/activity
 
 START n = node(*) 
@@ -78,6 +79,22 @@ MATCH (n)-- >(c)
 RETURN n.name, n.synId, count(*) as connections
 ORDER BY connections DESC
 LIMIT 10
+
+
+#### Poor man’s recommendation engine
+MATCH (n {createdBy:"YourOriginalID"})-->(c)
+MATCH (m)-->(c) WHERE NOT m.createdBy = "YourOriginalID"
+WITH m.createdBy as cb
+RETURN DISTINCT cb, count(cb) as friendship
+ORDER by friendship DESC
+LIMIT 10
+##### Take top result (or another of your choice)
+MATCH (a {createdBy:"YourOriginalID"})-->(m)
+MATCH (b {createdBy: "YourChoiceID"})-->(n) WHERE NOT m=n
+WITH a,n
+MATCH p = shortestPath((a)--(n))
+RETURN n.name, n.synId, length(p)
+ORDER BY length(p) LIMIT 3
 
 
 ### More detailed examples:
