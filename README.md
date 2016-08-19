@@ -2,6 +2,7 @@
 
 ## Useful Cypher queries for Neo4j Database
 
+
 ### Return a list with the name of all activities
 
 MATCH (n:Activity) RETURN n.name
@@ -88,7 +89,7 @@ WITH m.createdBy as cb
 RETURN DISTINCT cb, count(cb) as friendship
 ORDER by friendship DESC
 LIMIT 10
-##### Take top result (or another of your choice)
+#### Take top result (or another of your choice)
 MATCH (a {createdBy:"YourOriginalID"})-->(m)
 MATCH (b {createdBy: "YourChoiceID"})-->(n) WHERE NOT m=n
 WITH a,n
