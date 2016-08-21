@@ -168,9 +168,8 @@ if __name__ == '__main__':
     parser.add_argument('--j', help='Input name of json outfile')
     parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
     args = parser.parse_args()
-    print args.id
-
     
+
     if len(sys.argv) < 2:
         print 'Incorrect number of arguments'
         sys.exit(1)
@@ -194,8 +193,10 @@ if __name__ == '__main__':
         nodes = dict()
         for proj in proj_inputs:
             print 'Getting entities from %s' %proj
+            logging.info('Getting entities from %s' %proj)
             nodes.update(getEntities(projectId = proj))
             print 'Fetched %i entities' %len(nodes)
+            logging.info('Fetched %i entities' %len(nodes))
 
         activities = p.map(safeGetActivity, nodes.items())
         activities = cleanUpActivities(activities)
@@ -203,19 +204,21 @@ if __name__ == '__main__':
                                                                         float(len(nodes))/len(activities))
         edges = buildEdgesfromActivities(nodes, activities)
         print 'I have  %i nodes and %i edges' %(len(nodes), len(edges))
+        logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
         with open(json_file, 'w') as fp:
             json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
         print 'Connecting to Neo4j and authenticating user credentials'
+        logging.info('Connecting to Neo4j and authenticating user credentials')
         with open('credentials.json') as json_file:
             db_info=json.load(json_file)
         authenticate(db_info['machine'], db_info['username'], db_info['password'])
         db_dir = db_info['machine'] + "/db/data"
         graph = Graph(db_dir)
 
-        #function not completed
-	#try:
-            #json2neo4j(json_file)
-        #except:
-	    #print 'Error involving loading data from json file to Neo4j database'
-            #pass
+	try:
+            json2neo4j(json_file)
+        except:
+	    print 'Error involving loading data from json file to Neo4j database'
+            logging.error('Error involving loading data from json file to Neo4j database')
+            pass
