@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 #This file must be contained in the import folder on the machine running
 #Neo4j. Otherwise, the user must change the configurations setting in 
 #conf/neo4j.conf
@@ -11,10 +10,34 @@ from py2neo import Graph, authenticate
 
 # Connect to graph and add constraints.
 print('Connecting to Neo4j and authenticating user credentials')
-with open('password.txt', 'r') as filename:
-    password=str(filename.read().replace('\n', ''))
-authenticate("ec2-54-91-28-8.compute-1.amazonaws.com:7474", "neo4j", password)
-graph = Graph("http://ec2-54-91-28-8.compute-1.amazonaws.com:7474/db/data")
+with open('credentials.json') as json_file:
+    db_info=json.load(json_file)
+authenticate(db_info['machine'], db_info['username'], db_info['password'])
+db_dir = db_info['machine'] + "/db/data"
+graph = Graph(db_dir)
+
+# Build query
+aQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file:/vertices.csv" AS dvs
+    WITH dvs WHERE NOT dvs.concreteType = "activity"
+       MERGE (entity:Entity {id:dvs._id}) ON CREATE
+       SET entity = dvs
+"""
+bQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file:/vertices.csv" AS dvs
+    WITH dvs WHERE dvs.concreteType = "activity"
+       MERGE (activity:Activity {id:dvs._id}) ON CREATE
+       SET activity = dvs
+"""
+cQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file:/edges.csv" AS erow
+    MATCH (in_node { _id:erow._inV })
+    MATCH (out_node { _id:erow._outV })
+    MERGE (out_node)<-[:USED { action:erow._label, id:erow._id }]-(in_node)
+"""
 
 def json2neo4j(jsonfilename):
     # Retrieve JSON/CSV file
@@ -38,33 +61,6 @@ def json2neo4j(jsonfilename):
     graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
     graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
     graph.run("CREATE INDEX ON :Entity(entity)")
-
-
-    # Build query
-    aQuery = """
-    USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:/vertices.csv" AS dvs
-    WITH dvs WHERE NOT dvs.concreteType = "activity"
-       MERGE (entity:Entity {id:dvs._id}) ON CREATE
-       SET entity = dvs
-    """
-
-    bQuery = """
-    USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:/vertices.csv" AS dvs
-    WITH dvs WHERE dvs.concreteType = "activity"
-       MERGE (activity:Activity {id:dvs._id}) ON CREATE 
-       SET activity = dvs
-    """
-
-    cQuery = """
-    USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:/edges.csv" AS erow
-    MATCH (in_node { _id:erow._inV })
-    MATCH (out_node { _id:erow._outV })
-    MERGE (out_node)<-[:USED { action:erow._label, id:erow._id }]-(in_node)
-    """
-
 
     # Send Cypher query
     print('Loading data from CSV file(s) to Neo4j')
