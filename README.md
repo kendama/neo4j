@@ -4,9 +4,9 @@
 
 
 ### Return a list with the name of all activities
-
+```
 MATCH (n:Activity) RETURN n.name
-
+```
 
 ### Return a list with the name of all entities
 
