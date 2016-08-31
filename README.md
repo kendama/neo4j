@@ -1,5 +1,7 @@
 # Neo4j Graph Database for Synapse
 
+Neo4j is noted as the “World’s Leading Graph Database”. Graph database allows data to be organized such that relationships are prioritize. Those relationships can be exploited through queries that strongly consider the nodes and the connections between them. Synapse provides a means of recording information related to provenance, thus enabling an informal way of crediting Synapse user for their work. By loading this information regarding into a Neo4j graph database, users are empowered with a comprehensive means of tracking and visualizing provenance.
+
 ## Useful Cypher queries for Neo4j Database
 
 
