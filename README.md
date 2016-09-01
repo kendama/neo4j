@@ -155,3 +155,5 @@ MATCH (n {projectId:"4921369.0", fileType:"bam"})-[r]-(s)-[t]->(m {name:"http://
 
 
 Feel free to add or suggest other queries that would be equally useful or simply interesting. Queries can also be written programmatically using the Py2neo client library. An example of this can be found here: https://github.com/Sage-Bionetworks/PsychENCODE/tree/master/dataReleases/aug2016
+
+For questions and/or suggestions, please contact Kennedy Agwamba at kennedy.agwamba@sagebase.org
