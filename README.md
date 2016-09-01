@@ -3,13 +3,13 @@
 Neo4j is noted as the “World’s Leading Graph Database”. A graph database allows data to be organized such that relationships are prioritize. Those relationships can be exploited through queries that strongly consider the nodes and the connections between them. Synapse provides a means of recording information related to provenance, thus enabling an informal way of crediting Synapse user for their work. By loading this information regarding into a Neo4j graph database, users are empowered with a comprehensive means of tracking and visualizing provenance. To begin using Neo4j, download Neo4j for free from https://neo4j.com/download/.
 
 This repository contains 3 usable scripts and a requirement.txt file with a list of items to be installed using pip. To install these dependencies, be sure to have pip, and then use ‘pip install -r requirement.txt’. Users must have Neo4j installed on a local or remote machine with their login information contained in a json file as follows:
-
+```
 {
     "machine": “your-machine”,
     "username": “your-username”,
     "password": “your-password”
 }
-
+```
 Users must also have an active Synapse account.
 
 convertSynapse2Graph.py is a script to sparingly be used for uploading file entities and activities from all projects in Synapse. The output is a json file that can be uploaded to your local or remote Neo4j repository using load2Neo4j.py. This script is a modification of this gist: https://gist.github.com/larssono/9657a888f24e7a836806cda60f484048#file-convertactivites2graph-py
