@@ -58,7 +58,7 @@ MATCH (n:Entity) RETURN n.name
 ```
 MATCH (n:Activity) RETURN count(n)
 ```
-#### Return a count of all activities
+#### Return a count of all entities
 ```
 MATCH (n:Entity) RETURN count(n)
 ```
