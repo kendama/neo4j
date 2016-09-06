@@ -15,7 +15,7 @@ Users must also have an active Synapse account.
 convertSynapse2Graph.py is a script to sparingly be used for uploading file entities and activities from all projects in Synapse. The output is a json file that can be uploaded to your local or remote Neo4j repository using load2Neo4j.py. This script is a modification of this gist: https://gist.github.com/larssono/9657a888f24e7a836806cda60f484048#file-convertactivites2graph-py
 
 load2Neo4j.py is a script that takes the json file outputted from running convertActivities2Graph.py. The data contained in the json file is loaded to your Neo4j database.
-
+```
 usage: load2Neo4jDB.py [-h] json
 
 Please input the name of json outfile to load graph data to Neo4j database
@@ -25,9 +25,9 @@ positional arguments:
 
 optional arguments:
   -h, --help  show this help message and exit
-
+```
 activities2Graph.py is a wrapper that allows the user to input a synId or a list of synIds for any given project or projects; and sequentially retrieves information on all entities, activities, and their provenance, creates a json file containing this information, and then loads this data directly to your Neo4j database. 
-
+```
 usage: activities2Graph.py [-h] [--j json] [--p P] synId [synId ...]
 
 Please input the [1] synapse ID or space-separated list of synapse ID and the
@@ -40,7 +40,7 @@ optional arguments:
   -h, --help  show this help message and exit
   --j json    Input name of json outfile
   --p P       Specify the pool size for the multiprocessing module
-
+```
 
 
 ## Useful Cypher queries for Neo4j Database
@@ -114,7 +114,7 @@ LIMIT 10
 #### Display the most dependent entity/activity
 ```
 START n = node(*) 
-MATCH (n)-- >(c)
+MATCH (n)-->(c)
 RETURN n.name, n.synId, count(*) as connections
 ORDER BY connections DESC
 LIMIT 10
