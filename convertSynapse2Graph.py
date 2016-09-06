@@ -63,9 +63,18 @@ def getEntities(projectId):
         ent['_type']='vertex'
         ent['_id'] = newId.next()
         ent['synId'] = ent.pop('id')
-        entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
-        print 'getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
-                                             ent['versionNumber'])
+
+        versionNumber = ent['versionNumber']
+        entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
+        logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
+                                             ent['versionNumber']))
+        #retrieve previous versions
+        if int(versionNumber) > 1:
+            for version in range(1,int(versionNumber)):
+                ent['_id'] = newId.next()
+                entityDict['%s.%s' %(ent['synId'],version)] = ent 
+                logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
+                                             ent['synId'], version))
     return entityDict
 
 def safeGetActivity(entity):
@@ -73,7 +82,6 @@ def safeGetActivity(entity):
     k, ent = entity
     try:
         print 'Getting Provenance for:', k, counter2.next()
-        logging.info('Retrieving activity/provenance for:', k, counter2.next())
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
@@ -81,9 +89,9 @@ def safeGetActivity(entity):
 
 def cleanUpActivities(activities):
     '''remove all activity-less entities'''
+    logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
-        print 'Cleaning up activity: %s' % k
         logging.info('Cleaning up activity: %s' % k)
         if activity is None:
             continue
@@ -101,7 +109,6 @@ def buildEdgesfromActivities(nodes, activities):
     edges = list()
     for k, entity in nodes.items():
         print 'processing entity:', k
-        logging.info('processing entity:', k)
         if k not in activities:
             continue
         activity = activities[k]
@@ -110,41 +117,13 @@ def buildEdgesfromActivities(nodes, activities):
             new_nodes[activity['synId']]  = activity
             #Add input relationships
             for used in activity['used']:
-                #add missing vertices to nodes
-                if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
-                    targetId = '%s.%s' %(used['reference']['targetId'],
-                                         used['reference'].get('targetVersionNumber'))
-                    if targetId not in nodes:
-                        nodes[targetId] = { '_id': newId.next(),
-                                            '_type': 'vertex',
-                                            'synId' : used['reference']['targetId'],
-                                            'versionNumber': used['reference'].get('targetVersionNumber')}
-                elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
-                    targetId = used['url']
-                    if not targetId in nodes:
-                        nodes[targetId]= {'_id': newId.next(),
-                                          '_type': 'vertex',
-                                          'name': used.get('name'),
-                                          'url': used['url'],
-                                          'concreteType' : used['concreteType']}
-                #Create the incoming edges
-                edges.append({'_id': newId.next(),
-                              '_inV': activity['_id'],
-                              '_type': 'edge',
-                              '_outV': nodes[targetId]['_id'],
-                              '_label': 'used',
-                              'wasExecuted': used.get('wasExecuted', False),
-                              'createdBy': activity['createdBy'],
-                              'createdOn': activity['createdOn'],
-                              'modifiedBy':activity['modifiedBy'],
-                              'modifiedOn':activity['modifiedOn']})
-
+                edges = addNodesandEdges(used, nodes, activity, edges)
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
-        edges.append({'_id': newId.next(), 
-                      '_inV': entity['_id'], 
-                      '_outV': activity['_id'], 
+        edges.append({'_id': newId.next(),
+                      '_inV': entity['_id'],
+                      '_outV': activity['_id'],
                       '_type':'edge', '_label':'generatedBy',
                       'createdBy': activity['createdBy'],
                       'createdOn': activity['createdOn'],
@@ -154,8 +133,43 @@ def buildEdgesfromActivities(nodes, activities):
     return edges
 
 
+def addNodesandEdges(used, nodes, activity, edges):
+    #add missing vertices to nodes with edges
+    if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
+        targetId = '%s.%s' %(used['reference']['targetId'],
+                             used['reference'].get('targetVersionNumber'))
+        if targetId not in nodes:
+            nodes[targetId] = { '_id': newId.next(),
+                                '_type': 'vertex',
+                                'synId' : used['reference']['targetId'],
+                                'versionNumber': used['reference'].get('targetVersionNumber')}
+    elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
+        targetId = used['url']
+        if not targetId in nodes:
+            nodes[targetId]= {'_id': newId.next(),
+                              '_type': 'vertex',
+                              'name': used.get('name'),
+                              'url': used['url'],
+                              'concreteType' : used['concreteType']}
+    #Create the incoming edges
+    edges.append({'_id': newId.next(),
+                  '_inV': activity['_id'],
+                  '_type': 'edge',
+                  '_outV': nodes[targetId]['_id'],
+                  '_label': 'used',
+                  'wasExecuted': used.get('wasExecuted', False),
+                  'createdBy': activity['createdBy'],
+                  'createdOn': activity['createdOn'],
+                  'modifiedBy':activity['modifiedBy'],
+                  'modifiedOn':activity['modifiedOn']})
+
+    return edges
+
 
 if __name__ == '__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
     p = mp.Pool(7)
     projects = syn.chunkedQuery("select id from project")
     nodes = dict()
@@ -163,14 +177,14 @@ if __name__ == '__main__':
     for proj in projects:
         print 'Getting entities from %s' %proj['project.id']
         nodes.update( getEntities( benefactorId = str(proj['project.id']) ) )
-        print 'Fetched %i entities' %len(nodes)
+    logging.info('Fetched %i entities' %len(nodes))
 
     activities = p.map(safeGetActivity, nodes.items())
     activities = cleanUpActivities(activities)
     print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
                                                                         float(len(nodes))/len(activities))
     edges = buildEdgesfromActivities(nodes, activities)
-    print 'I have  %i nodes and %i edges' %(len(nodes), len(edges))
+    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
     with open('graph.json', 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 

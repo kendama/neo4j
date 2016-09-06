@@ -1,12 +1,12 @@
-import sys
 import synapseclient
-from collections import OrderedDict
+import load2Neo4jDB as ndb
 import multiprocessing.dummy as mp
 import threading
-import json2neo4j
 import argparse
 import logging
 import json
+from collections import OrderedDict
+from py2neo import Graph, authenticate
 
 syn = synapseclient.login()
 
@@ -66,11 +66,18 @@ def getEntities(projectId):
         ent['_type']='vertex'
         ent['_id'] = newId.next()
         ent['synId'] = ent.pop('id')
-        entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
-        print 'getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
-                                             ent['versionNumber'])
+
+        versionNumber = ent['versionNumber']
+        entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
         logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
                                              ent['versionNumber']))
+        #retrieve previous versions
+        if int(versionNumber) > 1:
+            for version in range(1,int(versionNumber)):
+                ent['_id'] = newId.next()
+                entityDict['%s.%s' %(ent['synId'],version)] = ent 
+                logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
+                                             ent['synId'], version))
     return entityDict
 
 def safeGetActivity(entity):
@@ -78,7 +85,6 @@ def safeGetActivity(entity):
     k, ent = entity
     try:
         print 'Getting Provenance for:', k, counter2.next()
-        logging.info('Getting Provenance for:', k, counter2.next())
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
@@ -89,7 +95,6 @@ def cleanUpActivities(activities):
     logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
-        print 'Cleaning up activity: %s' % k
         logging.info('Cleaning up activity: %s' % k)
         if activity is None:
             continue
@@ -106,7 +111,6 @@ def buildEdgesfromActivities(nodes, activities):
     new_nodes = dict()
     edges = list()
     for k, entity in nodes.items():
-        print 'processing entity:', k
         logging.info('processing entity:', k)
         if k not in activities:
             continue
@@ -116,41 +120,13 @@ def buildEdgesfromActivities(nodes, activities):
             new_nodes[activity['synId']]  = activity
             #Add input relationships
             for used in activity['used']:
-                #add missing vertices to nodes
-                if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
-                    targetId = '%s.%s' %(used['reference']['targetId'],
-                                         used['reference'].get('targetVersionNumber'))
-                    if targetId not in nodes:
-                        nodes[targetId] = { '_id': newId.next(),
-                                            '_type': 'vertex',
-                                            'synId' : used['reference']['targetId'],
-                                            'versionNumber': used['reference'].get('targetVersionNumber')}
-                elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
-                    targetId = used['url']
-                    if not targetId in nodes:
-                        nodes[targetId]= {'_id': newId.next(),
-                                          '_type': 'vertex',
-                                          'name': used.get('name'),
-                                          'url': used['url'],
-                                          'concreteType' : used['concreteType']}
-                #Create the incoming edges
-                edges.append({'_id': newId.next(),
-                              '_inV': activity['_id'],
-                              '_type': 'edge',
-                              '_outV': nodes[targetId]['_id'],
-                              '_label': 'used',
-                              'wasExecuted': used.get('wasExecuted', False),
-                              'createdBy': activity['createdBy'],
-                              'createdOn': activity['createdOn'],
-                              'modifiedBy':activity['modifiedBy'],
-                              'modifiedOn':activity['modifiedOn']})
-
+                edges = addNodesandEdges(used, nodes, activity, edges)
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
-        edges.append({'_id': newId.next(), 
-                      '_inV': entity['_id'], 
-                      '_outV': activity['_id'], 
+        edges.append({'_id': newId.next(),
+                      '_inV': entity['_id'],
+                      '_outV': activity['_id'],
                       '_type':'edge', '_label':'generatedBy',
                       'createdBy': activity['createdBy'],
                       'createdOn': activity['createdOn'],
@@ -160,65 +136,89 @@ def buildEdgesfromActivities(nodes, activities):
     return edges
 
 
+def addNodesandEdges(used, nodes, activity, edges):
+    #add missing vertices to nodes with edges
+    if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
+        targetId = '%s.%s' %(used['reference']['targetId'],
+                             used['reference'].get('targetVersionNumber'))
+        if targetId not in nodes:
+            nodes[targetId] = { '_id': newId.next(),
+                                '_type': 'vertex',
+                                'synId' : used['reference']['targetId'],
+                                'versionNumber': used['reference'].get('targetVersionNumber')}
+    elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
+        targetId = used['url']
+        if not targetId in nodes:
+            nodes[targetId]= {'_id': newId.next(),
+                              '_type': 'vertex',
+                              'name': used.get('name'),
+                              'url': used['url'],
+                              'concreteType' : used['concreteType']}
+    #Create the incoming edges
+    edges.append({'_id': newId.next(),
+                  '_inV': activity['_id'],
+                  '_type': 'edge',
+                  '_outV': nodes[targetId]['_id'],
+                  '_label': 'used',
+                  'wasExecuted': used.get('wasExecuted', False),
+                  'createdBy': activity['createdBy'],
+                  'createdOn': activity['createdOn'],
+                  'modifiedBy':activity['modifiedBy'],
+                  'modifiedOn':activity['modifiedOn']})
+
+    return edges
+
 
 if __name__ == '__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
     parser = argparse.ArgumentParser(description=
                 'Please input the [1] synapse ID or space-separated list of synapse ID and the [2] name of json outfile to graph provenance')
     parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
-    parser.add_argument('--j', help='Input name of json outfile')
+    parser.add_argument('--j', metavar='json', help='Input name of json outfile')
     parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
     args = parser.parse_args()
     
+    syn = synapseclient.Synapse()
+    syn.login()
 
-    if len(sys.argv) < 2:
-        print 'Incorrect number of arguments'
-        sys.exit(1)
-
-    else:
-        syn = synapseclient.Synapse()
-        syn.login()
-
-        proj_inputs = args.id
+    proj_inputs = args.id
         
-        if args.j:
-	    json_file = args.j
-        else:
-            json_file = 'graph.json'
+    if args.j:
+        json_file = args.j
+    else:
+        json_file = 'graph.json'
 
-        if args.p:
-            p = mp.Pool(args.p)
-        else:  
-            p = mp.Pool()
+    if args.p:
+        p = mp.Pool(args.p)
+    else:  
+        p = mp.Pool()
 
-        nodes = dict()
-        for proj in proj_inputs:
-            print 'Getting entities from %s' %proj
-            logging.info('Getting entities from %s' %proj)
-            nodes.update(getEntities(projectId = proj))
-            print 'Fetched %i entities' %len(nodes)
-            logging.info('Fetched %i entities' %len(nodes))
+    nodes = dict()
+    for proj in proj_inputs:
+        print 'Getting entities from %s' %proj
+        nodes.update(getEntities(projectId = proj))
+    logging.info('Fetched %i entities' %len(nodes))
 
-        activities = p.map(safeGetActivity, nodes.items())
-        activities = cleanUpActivities(activities)
-        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities), 
+    activities = p.map(safeGetActivity, nodes.items())
+    activities = cleanUpActivities(activities)
+    print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities), 
                                                                         float(len(nodes))/len(activities))
-        edges = buildEdgesfromActivities(nodes, activities)
-        print 'I have  %i nodes and %i edges' %(len(nodes), len(edges))
-        logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-        with open(json_file, 'w') as fp:
-            json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
+    edges = buildEdgesfromActivities(nodes, activities)
+    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
+    with open(json_file, 'w') as fp:
+        json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
-        print 'Connecting to Neo4j and authenticating user credentials'
-        logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as json_file:
-            db_info=json.load(json_file)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
+    logging.info('Connecting to Neo4j and authenticating user credentials')
+    with open('credentials.json') as creds:
+        db_info=json.load(creds)
+    authenticate(db_info['machine'], db_info['username'], db_info['password'])
+    db_dir = db_info['machine'] + "/db/data"
+    graph = Graph(db_dir)
 
-	try:
-            json2neo4j(json_file)
-        except:
-	    print 'Error involving loading data from json file to Neo4j database'
-            logging.error('Error involving loading data from json file to Neo4j database')
-            pass
+    try:
+        nbd.json2neo4j(str(json_file), graph)
+    except:
+        logging.error('Error involving loading data from json file to Neo4j database')
+        raise
