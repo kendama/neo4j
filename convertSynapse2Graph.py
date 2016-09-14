@@ -184,9 +184,6 @@ if __name__ == '__main__':
         if proj in ['syn582072', 'syn3218329', 'syn2044761', 'syn2351328', 'syn1450028']:
             print "Skipping"
             continue
-        if proj in ['syn300013', 'syn1773109', 'syn2580853', 'syn2623706', 'syn4921369']:
-            print "Already in database"
-            continue
         print 'Getting entities from %s' %proj['project.id']
         nodes.update( getEntities( projectId = str(proj['project.id']) ) )
     logging.info('Fetched %i entities' %len(nodes))
@@ -197,6 +194,6 @@ if __name__ == '__main__':
                                                                         float(len(nodes))/len(activities))
     edges = buildEdgesfromActivities(nodes, activities)
     logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-    with open('graph.json', 'w') as fp:
+    with open('graphSynapse.json', 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
