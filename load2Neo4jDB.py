@@ -29,9 +29,16 @@ bQuery = """
 cQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
-    MATCH (in_node { _id:erow._inV })
-    MATCH (out_node { _id:erow._outV })
-    MERGE (out_node)<-[:USED { action:erow._label, id:erow._id }]-(in_node)
+    MATCH (in_node:Entity { _id:erow._inV })
+    MATCH (out_node:Activity { _id:erow._outV })
+    MERGE (out_node)-[:USED { action:erow._label, id:erow._id }]->(in_node)
+"""
+dQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file://%s" AS erow
+    MATCH (in_node:Activity { _id:erow._inV })
+    MATCH (out_node:Entity { _id:erow._outV })
+    MERGE (out_node)-[:GENERATED_BY { action:erow._label, id:erow._id }]->(in_node)
 """
 
 def json2neo4j(jsonfilename, graph):
@@ -47,6 +54,7 @@ def json2neo4j(jsonfilename, graph):
 
     df1 = pd.DataFrame(JSON['vertices'])
     df1 = df1.drop('used', 1)
+    df1 = df1.drop('description', 1)
     df1.to_csv(nodes.name, index=False)
 
     df2 = pd.DataFrame(JSON['edges'])
@@ -70,12 +78,14 @@ def json2neo4j(jsonfilename, graph):
     aQuery = aQuery % nodes.name
     bQuery = bQuery % nodes.name
     cQuery = cQuery % edges.name
+    dQuery = dQuery % edges.name
 
     # Send Cypher query
     logging.info('Loading data from CSV file(s) to Neo4j')
     graph.run(aQuery)
     graph.run(bQuery)
     graph.run(cQuery)
+    graph.run(dQuery)
     graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
     graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
     graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
