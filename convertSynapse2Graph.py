@@ -3,6 +3,7 @@ import json
 from collections import OrderedDict
 import multiprocessing.dummy as mp
 import threading
+import argparse
 import logging
 
 syn = synapseclient.login()
@@ -54,7 +55,7 @@ def getEntities(projectId):
         query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
         entityDict = dict()
         for ent in query:
-            if ent['entity.nodeType'] in [1,2,3,4]: 
+            if ent['entity.nodeType'] in [1,2,3]: 
 	    #Remove containers by ignoring layers, projects, and previews
                 continue
             for key in ent.keys():
@@ -93,6 +94,7 @@ def safeGetActivity(entity):
 
 def cleanUpActivities(activities):
     '''remove all activity-less entities'''
+    global newId
     logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
@@ -176,8 +178,13 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    p = mp.Pool(6)
-    projects = syn.chunkedQuery("select id from project limit 256")
+    parser = argparse.ArgumentParser(description=
+                'Creates a json file based on provenance for all Synapse projects')
+    parser.add_argument('--p', type=int, default=6, help='Specify the pool size for the multiprocessing module')
+    args = parser.parse_args()
+
+    p = mp.Pool(args.p)
+    projects = syn.chunkedQuery("select id from project")
     nodes = dict()
 
     for proj in projects:

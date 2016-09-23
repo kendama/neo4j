@@ -51,34 +51,38 @@ counter2 = idGenerator()
 
 def getEntities(projectId):
     '''get and format all entities with the inputted projectId'''
-    logging.info('Getting and formatting all entities with the inputted projectId')
-    query = syn.chunkedQuery('select * from entity where projectId =="%s"' %projectId)
-    entityDict = dict()
-    for ent in query:
-        if ent['entity.nodeType'] in [2,3,4]: 
-	#Remove containers by ignoring layers, projects, and previews
-            continue
-        for key in ent.keys():
-            #remove the "entity" portion of query
-            new_key = '.'.join(key.split('.')[1:])
-            item = ent.pop(key)
-            ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
-        ent['_type']='vertex'
-        ent['_id'] = newId.next()
-        ent['synId'] = ent.pop('id')
+    global newId
+    try:
+        logging.info('Getting and formatting all entities with the inputted projectId')
+        query = syn.chunkedQuery('select * from entity where projectId =="%s"' %projectId)
+        entityDict = dict()
+        for ent in query:
+            if ent['entity.nodeType'] in [1,2,3]: 
+	    #Remove containers by ignoring layers, projects, and previews
+                continue
+            for key in ent.keys():
+                #remove the "entity" portion of query
+                new_key = '.'.join(key.split('.')[1:])
+                item = ent.pop(key)
+                ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+            ent['_type']='vertex'
+            ent['_id'] = newId.next()
+            ent['synId'] = ent.pop('id')
 
-        versionNumber = ent['versionNumber']
-        entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
-        logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
-                                             ent['versionNumber']))
-        #retrieve previous versions
-        if int(versionNumber) > 1:
-            for version in range(1,int(versionNumber)):
-                ent['_id'] = newId.next()
-                entityDict['%s.%s' %(ent['synId'],version)] = ent 
-                logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
-                                             ent['synId'], version))
-    return entityDict
+            versionNumber = ent['versionNumber']
+            entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
+            logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
+                                                 ent['versionNumber']))
+            #retrieve previous versions
+            if int(versionNumber) > 1:
+                for version in range(1,int(versionNumber)):
+                    ent['_id'] = newId.next()
+                    entityDict['%s.%s' %(ent['synId'],version)] = ent 
+                    logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
+                                                 ent['synId'], version))
+        return entityDict
+    except synapseclient.exceptions.SynapseHTTPError:
+        return entityDict
 
 def safeGetActivity(entity):
     '''retrieve activity/provenance associated with a particular entity'''
@@ -92,6 +96,7 @@ def safeGetActivity(entity):
 
 def cleanUpActivities(activities):
     '''remove all activity-less entities'''
+    global newId
     logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
@@ -120,7 +125,10 @@ def buildEdgesfromActivities(nodes, activities):
             new_nodes[activity['synId']]  = activity
             #Add input relationships
             for used in activity['used']:
-                edges = addNodesandEdges(used, nodes, activity, edges)
+                try:
+                    edges = addNodesandEdges(used, nodes, activity, edges)
+                except KeyError as e:
+                    continue
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
@@ -134,7 +142,6 @@ def buildEdgesfromActivities(nodes, activities):
                       'modifiedOn':activity['modifiedOn']})
     nodes.update(new_nodes)
     return edges
-
 
 def addNodesandEdges(used, nodes, activity, edges):
     #add missing vertices to nodes with edges
@@ -174,28 +181,25 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description=
-                'Please input the [1] synapse ID or space-separated list of synapse ID and the [2] name of json outfile to graph provenance')
+                '''Please input [1] the synapse ID or space-separated list of synapse ID and
+                            [2, default: graph.json] the name of json outfile to graph provenance and
+                            [3, default: # of available cores] the mp pool size''')
     parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('--j', metavar='json', help='Input name of json outfile')
     parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
     args = parser.parse_args()
-    
-    syn = synapseclient.Synapse()
-    syn.login()
 
+    nodes = dict()
     proj_inputs = args.id
-        
     if args.j:
         json_file = args.j
     else:
         json_file = 'graph.json'
-
     if args.p:
         p = mp.Pool(args.p)
     else:  
         p = mp.Pool()
 
-    nodes = dict()
     for proj in proj_inputs:
         print 'Getting entities from %s' %proj
         nodes.update(getEntities(projectId = proj))
