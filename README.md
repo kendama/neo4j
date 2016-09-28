@@ -16,7 +16,17 @@ This repository contains 3 usable scripts and a requirement.txt file with a list
 Users must also have an active Synapse account.
 
 convertSynapse2Graph.py is a script to sparingly be used for uploading file entities and activities from all projects in Synapse. The output is a json file that can be uploaded to your local or remote Neo4j repository using load2Neo4j.py. This script is a modification of this [gist](https://gist.github.com/larssono/9657a888f24e7a836806cda60f484048#file-convertactivites2graph-py).
+```
+usage: convertSynapse2Graph.py [-h] [--p P] [--j json] [--l L]
 
+Creates a json file based on provenance for all Synapse projects
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --p P       Specify the pool size for the multiprocessing module
+  --j json    Input name of json outfile
+  --l L       Load data from json file to Neo4j database
+```
 load2Neo4j.py is a script that takes the json file outputted from running convertActivities2Graph.py. The data contained in the json file is loaded to your Neo4j database.
 ```
 usage: load2Neo4jDB.py [-h] json
@@ -31,10 +41,11 @@ optional arguments:
 ```
 activities2Graph.py is a wrapper that allows the user to input a synId or a list of synIds for any given project or projects; and sequentially retrieves information on all entities, activities, and their provenance, creates a json file containing this information, and then loads this data directly to your Neo4j database. 
 ```
-usage: activities2Graph.py [-h] [--j json] [--p P] synId [synId ...]
+usage: activities2Graph.py [-h] [--j json] [--p P] [--l L] synId [synId ...]
 
-Please input the [1] synapse ID or space-separated list of synapse ID and the
-[2] name of json outfile to graph provenance
+Please input [1] the synapse ID or space-separated list of synapse ID and [2,
+default: graph.json] the name of json outfile to graph provenance and [3,
+default: # of available cores] the mp pool size
 
 positional arguments:
   synId       Input the synapse ID or list of synapse IDs
@@ -43,6 +54,7 @@ optional arguments:
   -h, --help  show this help message and exit
   --j json    Input name of json outfile
   --p P       Specify the pool size for the multiprocessing module
+  --l L       Load data from json file to Neo4j database
 ```
 
 

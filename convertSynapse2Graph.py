@@ -1,10 +1,12 @@
 import synapseclient
-import json
+import load2Neo4jDB as ndb
 from collections import OrderedDict
 import multiprocessing.dummy as mp
 import threading
 import argparse
 import logging
+import json
+import sys
 
 syn = synapseclient.login()
 
@@ -13,6 +15,11 @@ NODETYPES = {0:'dataset',1: 'layer',2: 'project',3: 'preview',4: 'folder',
              10:'genotypedata',11:'expressiondata',12:'robject',
              13:'summary',14:'genomicdata',15:'page',16:'file',17:'table',
              18:'community'} #used in getEntities
+
+IGNOREME_NODETYPES = [1,2,3]
+
+SKIP_LIST = ['syn582072', 'syn3218329', 'syn2044761', 'syn2351328', 'syn1450028']
+
 
 class threadsafe_iter:
     """Takes an iterator/generator and makes it thread-safe by
@@ -44,19 +51,18 @@ def idGenerator(start=0):
         yield i
         i +=1;
 
-newId = idGenerator()#29602)
+newIdGenerator = idGenerator()#29602)
 counter2 = idGenerator()
 
-def getEntities(projectId):
+def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES):
     '''get and format all entities with the inputted projectId'''
-    global newId
-    try:
-        logging.info('Getting and formatting all entities from %s' %projectId)
-        query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
-        entityDict = dict()
-        for ent in query:
-            if ent['entity.nodeType'] in [1,2,3]: 
-	    #Remove containers by ignoring layers, projects, and previews
+    logging.info('Getting and formatting all entities from %s' %projectId)
+    query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
+    entityDict = dict()
+    for ent in query:
+        try:
+            #Remove containers by ignoring layers, projects, and previews
+            if ent['entity.nodeType'] in toIgnore: 
                 continue
             for key in ent.keys():
                 #remove the "entity" portion of query
@@ -66,7 +72,7 @@ def getEntities(projectId):
             ent['_type']='vertex'
             ent['_id'] = newId.next()
             ent['synId'] = ent.pop('id')
-
+            synId = ent['synId']
             versionNumber = ent['versionNumber']
             entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
             logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
@@ -74,13 +80,22 @@ def getEntities(projectId):
             #retrieve previous versions
             if int(versionNumber) > 1:
                 for version in range(1,int(versionNumber)):
+                    ent = syn.restGET('/entity/%s/version/%s' %(ent['synId'],version))
+                    for key in ent.keys():
+                        #remove the "entity" portion of query
+                        new_key = '.'.join(key.split('.')[1:])
+                        item = ent.pop(key)
+                        ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+                    ent['_type']='vertex'
                     ent['_id'] = newId.next()
+                    ent['synId'] = synId
+                    ent['versionNumber'] = version
                     entityDict['%s.%s' %(ent['synId'],version)] = ent 
                     logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
                                                  ent['synId'], version))
-        return entityDict
-    except synapseclient.exceptions.SynapseHTTPError:
-        return entityDict
+        except synapseclient.exceptions.SynapseHTTPError:
+            continue 
+    return entityDict
 
 def safeGetActivity(entity):
     '''retrieve activity/provenance associated with a particular entity'''
@@ -92,9 +107,8 @@ def safeGetActivity(entity):
     except synapseclient.exceptions.SynapseHTTPError:
         return (k, None)
 
-def cleanUpActivities(activities):
+def cleanUpActivities(activities, newId = newIdGenerator):
     '''remove all activity-less entities'''
-    global newId
     logging.info('Removing all activity-less entities')
     returnDict = dict()
     for k,activity in activities:
@@ -123,10 +137,7 @@ def buildEdgesfromActivities(nodes, activities):
             new_nodes[activity['synId']]  = activity
             #Add input relationships
             for used in activity['used']:
-                try:
-                    edges = addNodesandEdges(used, nodes, activity, edges)
-                except KeyError as e:
-                    continue
+                edges = addNodesandEdges(used, nodes, activity, edges)
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
@@ -144,13 +155,16 @@ def buildEdgesfromActivities(nodes, activities):
 def addNodesandEdges(used, nodes, activity, edges):
     #add missing vertices to nodes with edges
     if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
-        targetId = '%s.%s' %(used['reference']['targetId'],
-                             used['reference'].get('targetVersionNumber'))
-        if targetId not in nodes:
-            nodes[targetId] = { '_id': newId.next(),
-                                '_type': 'vertex',
-                                'synId' : used['reference']['targetId'],
-                                'versionNumber': used['reference'].get('targetVersionNumber')}
+        try:
+            targetId = '%s.%s' %(used['reference']['targetId'],
+                                 used['reference'].get('targetVersionNumber'))
+            if targetId not in nodes:
+                nodes[targetId] = { '_id': newId.next(),
+                                    '_type': 'vertex',
+                                    'synId' : used['reference']['targetId'],
+                                    'versionNumber': used['reference'].get('targetVersionNumber')}
+        except KeyError as e:
+            sys.stderr.write('Skipping current relationship retrieval due to targetId KeyError')   
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
@@ -158,7 +172,7 @@ def addNodesandEdges(used, nodes, activity, edges):
                               '_type': 'vertex',
                               'name': used.get('name'),
                               'url': used['url'],
-                              'concreteType' : used['concreteType']}
+                              'concreteType': used['concreteType']}
     #Create the incoming edges
     edges.append({'_id': newId.next(),
                   '_inV': activity['_id'],
@@ -180,15 +194,21 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description=
                 'Creates a json file based on provenance for all Synapse projects')
-    parser.add_argument('--p', type=int, default=6, help='Specify the pool size for the multiprocessing module')
+    parser.add_argument('--p', type=int, default=4, help='Specify the pool size for the multiprocessing module')
+    parser.add_argument('--j', metavar='json', help='Input name of json outfile')
+    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database') 
     args = parser.parse_args()
 
     p = mp.Pool(args.p)
+    if args.j:
+        json_file = args.j
+    else:
+        json_file = 'graphSynapse.json'
     projects = syn.chunkedQuery("select id from project")
     nodes = dict()
 
     for proj in projects:
-        if proj in ['syn582072', 'syn3218329', 'syn2044761', 'syn2351328', 'syn1450028']:
+        if proj in SKIP_LIST:
             print "Skipping"
             continue
         print 'Getting entities from %s' %proj['project.id']
@@ -197,10 +217,27 @@ if __name__ == '__main__':
 
     activities = p.map(safeGetActivity, nodes.items())
     activities = cleanUpActivities(activities)
-    print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
-                                                                        float(len(nodes))/len(activities))
+    if len(activities) > 0:
+        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
+                                                                            float(len(nodes))/len(activities))
+    else:
+        print 'This project lacks accessible information on provenance'
+
     edges = buildEdgesfromActivities(nodes, activities)
     logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-    with open('graphSynapse.json', 'w') as fp:
+    with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
+    if args.l:
+        logging.info('Connecting to Neo4j and authenticating user credentials')
+        with open('credentials.json') as creds:
+            db_info=json.load(creds)
+        authenticate(db_info['machine'], db_info['username'], db_info['password'])
+        db_dir = db_info['machine'] + "/db/data"
+        graph = Graph(db_dir)
+
+        try:
+            ndb.json2neo4j(str(json_file), graph)
+        except:
+            logging.error('Error involving loading data from json file to Neo4j database')
+            raise
