@@ -93,7 +93,8 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
                     entityDict['%s.%s' %(ent['synId'],version)] = ent 
                     logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
                                                  ent['synId'], version))
-        except synapseclient.exceptions.SynapseHTTPError:
+        except synapseclient.exceptions.SynapseHTTPError as e:
+            sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
             continue 
     return entityDict
 
@@ -101,7 +102,7 @@ def safeGetActivity(entity):
     '''retrieve activity/provenance associated with a particular entity'''
     k, ent = entity
     try:
-        print 'Getting Provenance for: %s (%i)' %(k,counter2.next())
+        print 'Getting Provenance for: %s (%i)' % (k,counter2.next())
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
@@ -164,7 +165,7 @@ def addNodesandEdges(used, nodes, activity, edges):
                                     'synId' : used['reference']['targetId'],
                                     'versionNumber': used['reference'].get('targetVersionNumber')}
         except KeyError as e:
-            sys.stderr.write('Skipping current relationship retrieval due to targetId KeyError')   
+            sys.stderr.write('Skipping current relationship for %s retrieval due to targetId %s' % (str(activity['_id']), str(e)) )   
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
