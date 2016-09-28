@@ -12,80 +12,122 @@ import tempfile
 from py2neo import Graph, authenticate
 
 # Preconstructed queries
-aQuery = """
+entityNodeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE NOT dvs.concreteType = "activity"
        MERGE (entity:Entity {id:dvs._id}) ON CREATE
        SET entity = dvs
 """
-bQuery = """
+activityNodeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE dvs.concreteType = "activity"
        MERGE (activity:Activity {id:dvs._id}) ON CREATE
        SET activity = dvs
 """
-cQuery = """
+generatedByEdgeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
-    MATCH (in_node { _id:erow._inV })
-    MATCH (out_node { _id:erow._outV })
-    MERGE (out_node)<-[:USED { action:erow._label, id:erow._id }]-(in_node)
+    MATCH (in_node:Entity { _id:erow._inV })
+    MATCH (out_node:Activity { _id:erow._outV })
+    MERGE (out_node)-[:GENERATED_BY { action:erow._label, id:erow._id }]->(in_node)
+"""
+usedEdgeQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file://%s" AS erow
+    MATCH (in_node:Activity { _id:erow._inV })
+    MATCH (out_node:Entity { _id:erow._outV })
+    MERGE (out_node)-[:USED { action:erow._label, id:erow._id }]->(in_node)
 """
 
-def json2neo4j(jsonfilename, graph):
-    global aQuery, bQuery, cQuery
+nodeQueries = [entityNodeQuery, activityNodeQuery]
+
+edgeQueries = [generatedByEdgeQuery, usedEdgeQuery]
+
+def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
     # Retrieve JSON/CSV file
     logging.info('Creating temporary JSON/CSV file')
     nodes = tempfile.NamedTemporaryFile(prefix='vertices', suffix='.csv')
     edges = tempfile.NamedTemporaryFile(prefix='edges', suffix='.csv')
+
+    dir_info = os.stat('.')
+    uid = dir_info.st_uid
+    gid = dir_info.st_gid
 
     logging.info('Converting JSON to CSV')
     with open(jsonfilename) as json_file:
         JSON = json.load(json_file)
 
     df1 = pd.DataFrame(JSON['vertices'])
-    df1 = df1.drop('used', 1)
+    if 'used' in df1.columns:
+        df1 = df1.drop('used', 1)
+    if 'description' in df1.columns:
+        df1 = df1.drop('description', 1)
     df1.to_csv(nodes.name, index=False)
-
-    df2 = pd.DataFrame(JSON['edges'])
-    df2.to_csv(edges.name, index=False)
     # index=False removes first column with null header
+    
+    df2 = pd.DataFrame(JSON['edges'])
+    if df2.empty:
+        print 'No edges/activities/provenance in graph'
 
-    # Change file permission and ownership for Neo4j
-    dir_info = os.stat('.')
-    uid = dir_info.st_uid
-    gid = dir_info.st_gid
-    os.chown(nodes.name, uid, gid)
-    os.chown(edges.name, uid, gid)
+        # Change file permission and ownership for Neo4j
+        os.chown(nodes.name, uid, gid) 
 
-    # Add uniqueness constraints and indexing
-    logging.info('Establishing uniqueness constraints and indexing for Neo4j')
-    graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-    graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
-    graph.run("CREATE INDEX ON :Entity(entity)")
+        # Add uniqueness constraints and indexing
+        graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+        graph.run("CREATE INDEX ON :Entity(entity)")
+        for nodeQuery in node_queries:
+            nodeQuery = nodeQuery % nodes.name
 
-    # Build query
-    aQuery = aQuery % nodes.name
-    bQuery = bQuery % nodes.name
-    cQuery = cQuery % edges.name
+        #Send Cypher query
+        logging.info('Loading data from CSV file(s) to Neo4j')
+        graph.run(nodeQuery[0])
 
-    # Send Cypher query
-    logging.info('Loading data from CSV file(s) to Neo4j')
-    graph.run(aQuery)
-    graph.run(bQuery)
-    graph.run(cQuery)
-    graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-    graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
-    graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
-    logging.info('Done.')
+        graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+        graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
+        logging.info('Done.')
 
-    # Clean up directory and remove created files
-    # Comment out if you would like to keep csv files
-    print('Removing csv files from local directory')
-    nodes.close()
-    edges.close()
+        # Clean up directory and remove created files
+        # Comment out if you would like to keep csv files
+        print('Removing csv files from local directory')
+        nodes.close()
+
+    else:
+        df2.to_csv(edges.name, index=False)
+
+        # Change file permission and ownership for Neo4j
+        os.chown(nodes.name, uid, gid)
+        os.chown(edges.name, uid, gid)
+
+        # Add uniqueness constraints and indexing
+        logging.info('Establishing uniqueness constraints and indexing for Neo4j')
+        graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+        graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
+        graph.run("CREATE INDEX ON :Entity(entity)")
+
+        # Build query
+        for nodeQuery in node_queries:
+            nodeQuery = nodeQuery % nodes.name
+        for edgeQuery in edge_queries:
+            edgeQuery = edgeQueries % edges.name
+
+        # Send Cypher query
+        logging.info('Loading data from CSV file(s) to Neo4j')
+        for nodeQuery in node_queries:
+            graph.run(nodeQuery)
+        for edgeQuery in edge_queries:
+            graph.run(edgeQuery)
+        graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+        graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
+        graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
+        logging.info('Done.')
+
+        # Clean up directory and remove created files
+        # Comment out if you would like to keep csv files
+        print('Removing csv files from local directory')
+        nodes.close()
+        edges.close()
 
 if __name__ == '__main__':
     logger = logging.getLogger()
