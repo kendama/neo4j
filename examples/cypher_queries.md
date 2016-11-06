@@ -1,5 +1,5 @@
 ## Useful Cypher queries for Neo4j Database
-
+For a quick overview reference of Cypher queries, see the [Neo4j Cypher Query Refcard](http://neo4j.com/docs/cypher-refcard/current/).
 
 #### Return a list with the name of all activities
 ```
