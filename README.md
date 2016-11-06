@@ -1,6 +1,8 @@
-# Neo4j Graph Database for Synapse
+# Introduction
 
-Synapse provides a means of recording information related to provenance as a graph, thus enabling an formal way of crediting Synapse user for their work. However, the current implementation does not provide easily accessible mechanisms to search or discover structures in the provenance graph across different activities. This repository provides the mechanisms for loading Synapse provenance information into a graph database, which allows data to be organized such that relationships are prioritized. Those relationships can be exploited through queries that consider the nodes and the connections between them. By loading this information regarding into a graph database, users are empowered with a flexible means of tracking, searching, and visualizing provenance.
+Synapse provides a means of recording [provenance](http://docs.synapse.org/articles/provenance.html) as a graph, thus enabling a formal way of documenting work performed and the ability to assign credit to a specific Synapse user for performing it. However, the current implementation does not provide mechanisms to search or discover structures in the provenance graph across different activities. 
+
+This repository provides the mechanisms for loading Synapse provenance information into a graph database, which allows data to be organized such that relationships are prioritized. Those relationships can be exploited through queries that consider the nodes and the connections between them. By loading this information regarding into a graph database, users are empowered with a flexible means of tracking, searching, and visualizing provenance.
 
 Here, we use the [Neo4j](https://neo4j.com/) graph database. 
 
