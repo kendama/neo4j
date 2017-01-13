@@ -1,5 +1,5 @@
 import synapseclient
-import load2Neo4jDB as ndb
+# import load2Neo4jDB as ndb
 import convertSynapse2Graph as cg
 import multiprocessing.dummy as mp
 import threading
@@ -7,9 +7,7 @@ import argparse
 import logging
 import json
 from collections import OrderedDict
-from py2neo import Graph, authenticate
-
-syn = synapseclient.login()
+# from py2neo import Graph, authenticate
 
 if __name__ == '__main__':
     logger = logging.getLogger()
@@ -19,22 +17,18 @@ if __name__ == '__main__':
                 '''Please input [1] the synapse ID or space-separated list of synapse ID and
                             [2, default: graph.json] the name of json outfile to graph provenance and
                             [3, default: # of available cores] the mp pool size''')
-    parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
-    parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
-    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
+    parser.add_argument('--id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
+    parser.add_argument('outfile', metavar='FILE', help='Output file name', default="graph.json")
+    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module', default=1)
     args = parser.parse_args()
 
     proj_inputs = args.id
-    if args.j:
-        json_file = args.j
-    else:
-        json_file = 'graph.json'
-    if args.p:
-        p = mp.Pool(args.p)
-    else:  
-        p = mp.Pool()
+    json_file = args.outfile
+
+    p = mp.Pool(args.p)
     nodes = dict()
+
+    syn = synapseclient.login()
 
     for proj in proj_inputs:
         print 'Getting entities from %s' %proj
@@ -54,16 +48,16 @@ if __name__ == '__main__':
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
-    if args.l:
-        logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as creds:
-            db_info=json.load(creds)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
-
-        try:
-            ndb.json2neo4j(str(json_file), graph)
-        except:
-            logging.error('Error involving loading data from json file to Neo4j database')
-            raise
+    # if args.l:
+    #     logging.info('Connecting to Neo4j and authenticating user credentials')
+    #     with open('credentials.json') as creds:
+    #         db_info=json.load(creds)
+    #     authenticate(db_info['machine'], db_info['username'], db_info['password'])
+    #     db_dir = db_info['machine'] + "/db/data"
+    #     graph = Graph(db_dir)
+    #
+    #     try:
+    #         ndb.json2neo4j(str(json_file), graph)
+    #     except:
+    #         logging.error('Error involving loading data from json file to Neo4j database')
+    #         raise
