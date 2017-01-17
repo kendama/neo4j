@@ -8,8 +8,6 @@ import logging
 import json
 import sys
 
-syn = synapseclient.login()
-
 NODETYPES = {0:'dataset',1: 'layer',2: 'project',3: 'preview',4: 'folder',
              5: 'analysis',6: 'step', 7: 'code',8: 'link',9: 'phenotypedata',
              10:'genotypedata',11:'expressiondata',12:'robject',
@@ -201,6 +199,8 @@ if __name__ == '__main__':
     parser.add_argument('--j', metavar='json', help='Input name of json outfile')
     parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
+    
+    syn = synapseclient.login()
 
     p = mp.Pool(args.p)
     if args.j:
