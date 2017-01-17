@@ -62,7 +62,7 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
     for ent in query:
         try:
             #Remove containers by ignoring layers, projects, and previews
-            if ent['entity.nodeType'] in toIgnore: 
+            if ent['entity.nodeType'] in toIgnore:
                 continue
             for key in ent.keys():
                 #remove the "entity" portion of query
@@ -74,28 +74,30 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
             ent['synId'] = ent.pop('id')
             synId = ent['synId']
             versionNumber = ent['versionNumber']
-            entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
+            entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent
             logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
                                              ent['versionNumber']))
             #retrieve previous versions
-            if int(versionNumber) > 1:
-                for version in range(1,int(versionNumber)):
-                    ent = syn.restGET('/entity/%s/version/%s' %(ent['synId'],version))
+
+            old_versions = syn.restGET("/entity/%s/version" % (ent['synId'],))
+            if old_versions['totalNumberOfResults'] > 0:
+                for old in old_versions['results']:
+                    ent = dict(syn.get(ent['synId'], version=old['versionNumber']))
+                    foo = ent.pop('annotations')
                     for key in ent.keys():
                         #remove the "entity" portion of query
                         new_key = '.'.join(key.split('.')[1:])
-                        item = ent.pop(key)
-                        ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+                        item = ent[key]
+                        ent[key] = item[0] if (type(item) is list and len(item)>0) else item
                     ent['_type']='vertex'
                     ent['_id'] = newId.next()
                     ent['synId'] = synId
-                    ent['versionNumber'] = version
-                    entityDict['%s.%s' %(ent['synId'],version)] = ent 
+                    entityDict['%s.%s' %(ent['synId'],version)] = ent
                     logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
-                                                 ent['synId'], version))
+                                                 ent['synId'], old['versionNumber']))
         except synapseclient.exceptions.SynapseHTTPError as e:
             sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
-            continue 
+            continue
     return entityDict
 
 def safeGetActivity(entity):
@@ -122,7 +124,7 @@ def cleanUpActivities(activities, newId = newIdGenerator):
         activity['_type'] = 'vertex'
         returnDict[k] = activity
     return returnDict
-    
+
 def buildEdgesfromActivities(nodes, activities):
     '''construct directed edges based on provenance'''
     logging.info('Constructing directed edges based on provenance')
@@ -165,7 +167,7 @@ def addNodesandEdges(used, nodes, activity, edges):
                                     'synId' : used['reference']['targetId'],
                                     'versionNumber': used['reference'].get('targetVersionNumber')}
         except KeyError as e:
-            sys.stderr.write('Skipping current relationship for %s retrieval due to targetId %s' % (str(activity['_id']), str(e)) )   
+            sys.stderr.write('Skipping current relationship for %s retrieval due to targetId %s' % (str(activity['_id']), str(e)) )
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
@@ -197,7 +199,7 @@ if __name__ == '__main__':
                 'Creates a json file based on provenance for all Synapse projects')
     parser.add_argument('--p', type=int, default=4, help='Specify the pool size for the multiprocessing module')
     parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database') 
+    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
 
     p = mp.Pool(args.p)
