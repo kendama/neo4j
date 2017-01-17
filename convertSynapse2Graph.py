@@ -1,5 +1,5 @@
 import synapseclient
-import load2Neo4jDB as ndb
+# import load2Neo4jDB as ndb
 from collections import OrderedDict
 import multiprocessing.dummy as mp
 import threading
@@ -231,16 +231,16 @@ if __name__ == '__main__':
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
-    if args.l:
-        logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as creds:
-            db_info=json.load(creds)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
+    # if args.l:
+    #     logging.info('Connecting to Neo4j and authenticating user credentials')
+    #     with open('credentials.json') as creds:
+    #         db_info=json.load(creds)
+    #     authenticate(db_info['machine'], db_info['username'], db_info['password'])
+    #     db_dir = db_info['machine'] + "/db/data"
+    #     graph = Graph(db_dir)
 
-        try:
-            ndb.json2neo4j(str(json_file), graph)
-        except:
-            logging.error('Error involving loading data from json file to Neo4j database')
-            raise
+    #     try:
+    #         ndb.json2neo4j(str(json_file), graph)
+    #     except:
+    #         logging.error('Error involving loading data from json file to Neo4j database')
+    #         raise
