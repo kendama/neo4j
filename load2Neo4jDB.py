@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     # authenticate(db_info['machine'], db_info['username'], db_info['password'])
     # db_dir = db_info['machine'] + "/db/data"
-    graph = py2neo.Graph() #host=db_info['machine'], password=db_info['password'])
+    graph = py2neo.Graph(host=db_info['machine'], password=db_info['password'])
 
     try:
         with open(args.jsonfile) as json_file:
