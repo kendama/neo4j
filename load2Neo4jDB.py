@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     # Connect to graph
     print 'Connecting to Neo4j and authenticating user credentials'
-    with open('/home/kdaily/credentials.json') as json_file:
+    with open(args.credentials) as json_file:
         db_info=json.load(json_file)
 
     # authenticate(db_info['machine'], db_info['username'], db_info['password'])
