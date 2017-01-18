@@ -13,10 +13,7 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.setLevel(logging.ERROR)
 
-    parser = argparse.ArgumentParser(description=
-                '''Please input [1] the synapse ID or space-separated list of synapse ID and
-                            [2, default: graph.json] the name of json outfile to graph provenance and
-                            [3, default: # of available cores] the mp pool size''')
+    parser = argparse.ArgumentParser()
     parser.add_argument('--id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('outfile', metavar='FILE', help='Output file name', default="graph.json")
     parser.add_argument('-p', type=int, help='Specify the pool size for the multiprocessing module', default=1)
@@ -48,7 +45,6 @@ if __name__ == '__main__':
     #
     edges = cg.buildEdgesfromActivities(syn, nodes, activities)
     # logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-    print json.dumps(edges, indent=2)
 
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)

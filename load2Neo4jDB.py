@@ -1,5 +1,5 @@
 #This file must be contained in the import folder on the machine running
-#Neo4j. Otherwise, the user must change the configurations setting in 
+#Neo4j. Otherwise, the user must change the configurations setting in
 #conf/neo4j.conf
 import json
 import csv
@@ -9,7 +9,7 @@ import sys
 import logging
 import argparse
 import tempfile
-from py2neo import Graph, authenticate
+import py2neo
 
 # Preconstructed queries
 entityNodeQuery = """
@@ -66,13 +66,13 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         df1 = df1.drop('description', 1)
     df1.to_csv(nodes.name, index=False)
     # index=False removes first column with null header
-    
+
     df2 = pd.DataFrame(JSON['edges'])
     if df2.empty:
         print 'No edges/activities/provenance in graph'
 
         # Change file permission and ownership for Neo4j
-        os.chown(nodes.name, uid, gid) 
+        os.chown(nodes.name, uid, gid)
 
         # Add uniqueness constraints and indexing
         graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
@@ -107,17 +107,16 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         graph.run("CREATE INDEX ON :Entity(entity)")
 
         # Build query
-        for nodeQuery in node_queries:
-            nodeQuery = nodeQuery % nodes.name
-        for edgeQuery in edge_queries:
-            edgeQuery = edgeQueries % edges.name
-
-        # Send Cypher query
         logging.info('Loading data from CSV file(s) to Neo4j')
         for nodeQuery in node_queries:
+            nodeQuery = nodeQuery % nodes.name
             graph.run(nodeQuery)
+
         for edgeQuery in edge_queries:
+            edgeQuery = edgeQuery % edges.name
             graph.run(edgeQuery)
+
+        # Send Cypher query
         graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
         graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
@@ -138,22 +137,18 @@ if __name__ == '__main__':
     parser.add_argument('js', metavar='json', help='Input the name of pregenerated json file')
     args = parser.parse_args()
 
-    if len(sys.argv) != 2:
-        print 'Incorrect number of arguments'
-        print 'Please input the name of json outfile to graph provenance'
-        sys.exit(1)
-    else:
-        # Connect to graph
-        print 'Connecting to Neo4j and authenticating user credentials'
-        with open('credentials.json') as json_file:
-            db_info=json.load(json_file)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
+    # Connect to graph
+    print 'Connecting to Neo4j and authenticating user credentials'
+    with open('/home/kdaily/credentials.json') as json_file:
+        db_info=json.load(json_file)
 
-        jsonfile = args.js
-        try:
-            json2neo4j(str(jsonfile), graph)
-        except:
-            print 'Error involving loading data from json file to Neo4j database'
-            raise
+    # authenticate(db_info['machine'], db_info['username'], db_info['password'])
+    # db_dir = db_info['machine'] + "/db/data"
+    graph = py2neo.Graph(host=db_info['machine'], password=db_info['password'])
+
+    jsonfile = args.js
+    try:
+        json2neo4j(str(jsonfile), graph)
+    except:
+        print 'Error involving loading data from json file to Neo4j database'
+        raise
