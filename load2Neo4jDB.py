@@ -14,28 +14,28 @@ import py2neo
 # Preconstructed queries
 entityNodeQuery = """
     USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:////%s" AS dvs
+    LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE NOT dvs.concreteType = "activity"
        MERGE (entity:Entity {id:dvs._id}) ON CREATE
        SET entity = dvs
 """
 activityNodeQuery = """
     USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:////%s" AS dvs
+    LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE dvs.concreteType = "activity"
        MERGE (activity:Activity {id:dvs._id}) ON CREATE
        SET activity = dvs
 """
 generatedByEdgeQuery = """
     USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:////%s" AS erow
+    LOAD CSV WITH HEADERS FROM "file://%s" AS erow
     MATCH (in_node:Entity { _id:erow._inV })
     MATCH (out_node:Activity { _id:erow._outV })
     MERGE (out_node)-[:GENERATED_BY { action:erow._label, id:erow._id }]->(in_node)
 """
 usedEdgeQuery = """
     USING PERIODIC COMMIT 1000
-    LOAD CSV WITH HEADERS FROM "file:////%s" AS erow
+    LOAD CSV WITH HEADERS FROM "file://%s" AS erow
     MATCH (in_node:Activity { _id:erow._inV })
     MATCH (out_node:Entity { _id:erow._outV })
     MERGE (out_node)-[:USED { action:erow._label, id:erow._id }]->(in_node)
