@@ -154,7 +154,8 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description='Load graph data to Neo4j database.')
-    parser.add_argument('jsonfile', metavar='json', help='Input the name of pregenerated json file')
+    parser.add_argument('--credentials', metavar='FILE', help='neo4j credentials file', default='~/credentials.json')
+    parser.add_argument('jsonfile', metavar='FILE', help='Input the name of pregenerated json file')
     args = parser.parse_args()
 
     # Connect to graph
