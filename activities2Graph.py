@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 if __name__ == '__main__':
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.ERROR)
 
     parser = argparse.ArgumentParser(description=
                 '''Please input [1] the synapse ID or space-separated list of synapse ID and
@@ -19,7 +19,7 @@ if __name__ == '__main__':
                             [3, default: # of available cores] the mp pool size''')
     parser.add_argument('--id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('outfile', metavar='FILE', help='Output file name', default="graph.json")
-    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module', default=1)
+    parser.add_argument('-p', type=int, help='Specify the pool size for the multiprocessing module', default=1)
     args = parser.parse_args()
 
     proj_inputs = args.id
@@ -28,23 +28,28 @@ if __name__ == '__main__':
     p = mp.Pool(args.p)
     nodes = dict()
 
-    syn = synapseclient.login()
+    syn = synapseclient.login(silent=True)
 
     for proj in proj_inputs:
-        print 'Getting entities from %s' %proj
-        nodes.update(cg.getEntities(projectId = proj))
+        logging.info('Getting entities from %s' % proj)
+        nodes.update(cg.getEntities(syn=syn, projectId = proj))
     logging.info('Fetched %i entities' %len(nodes))
 
-    activities = p.map(cg.safeGetActivity, nodes.items())
-    activities = cg.cleanUpActivities(activities)
-    if len(activities) > 0:
-        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
-                                                                            float(len(nodes))/len(activities))
-    else:
-        print 'This project lacks accessible information on provenance'
+    getActivity = lambda x: cg.safeGetActivity(syn, x)
+    activities = p.map(getActivity, nodes.items())
 
-    edges = cg.buildEdgesfromActivities(nodes, activities)
-    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
+    activities = cg.cleanUpActivities(activities)
+
+    # if len(activities) > 0:
+    #     print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
+    #                                                                         float(len(nodes))/len(activities))
+    # else:
+    #     print 'This project lacks accessible information on provenance'
+    #
+    edges = cg.buildEdgesfromActivities(syn, nodes, activities)
+    # logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
+    print json.dumps(edges, indent=2)
+
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
