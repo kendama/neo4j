@@ -57,7 +57,10 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
     logging.info('Getting and formatting all entities from %s' %projectId)
     query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
     entityDict = dict()
-    for ent in query:
+    for myent in query:
+
+        ent = dict(myent)
+
         try:
             #Remove containers by ignoring layers, projects, and previews
             if ent['entity.nodeType'] in toIgnore:
@@ -67,9 +70,13 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
                 new_key = '.'.join(key.split('.')[1:])
                 item = ent.pop(key)
                 ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+
             ent['_type']='vertex'
             ent['_id'] = newId.next()
             ent['synId'] = ent.pop('id')
+            ent['benefactorId'] = 'syn%s' % ent['benefactorId']
+            ent['parentId'] = 'syn%s' % ent['parentId']
+
             synId = ent['synId']
             versionNumber = ent['versionNumber']
             entityDict['%s.%s' %(ent['synId'],versionNumber)] = OrderedDict(ent)
@@ -90,6 +97,9 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
                     ent['_type']='vertex'
                     ent['_id'] = newId.next()
                     ent['synId'] = synId
+                    ent['benefactorId'] = 'syn%s' % ent['benefactorId']
+                    ent['parentId'] = 'syn%s' % ent['parentId']
+
                     entityDict['%s.%s' %(ent['synId'],old['versionNumber'])] = OrderedDict(ent)
                     logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
                                                  ent['synId'], old['versionNumber']))
@@ -133,13 +143,18 @@ def buildEdgesfromActivities(syn, nodes, activities, newId=newIdGenerator):
     '''
 
     logging.info('Constructing directed edges based on provenance')
+
     new_nodes = dict()
     edges = list()
+
     for k, entity in nodes.items():
         logging.info('processing entity: %s' % k)
+
         if k not in activities:
             continue
+
         activity = activities[k]
+
         #Determine if we have already seen this activity
         if activity['synId'] not in new_nodes:
             new_nodes[activity['synId']]  = activity
@@ -148,6 +163,7 @@ def buildEdgesfromActivities(syn, nodes, activities, newId=newIdGenerator):
                 edges = addNodesandEdges(syn, used, nodes, activity, edges)
         else:
             activity = new_nodes[activity['synId']]
+
         #Add generated relationship (i.e. out edge)
         edges.append({'_id': newId.next(),
                       '_inV': entity['_id'],
