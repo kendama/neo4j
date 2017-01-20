@@ -50,7 +50,7 @@ def nodes2neo(datafile, graph):
     # os.chown(nodes.name, uid, gid)
     #
     # Add uniqueness constraints and indexing
-    graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+    # graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
     graph.run("CREATE INDEX ON :Entity(entity)")
     nodeQuery = entityNodeQuery % nodes.name
 
@@ -60,8 +60,8 @@ def nodes2neo(datafile, graph):
     logging.info('Loading data from CSV file(s) to Neo4j')
     graph.run(nodeQuery)
 
-    graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-    graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
+    # graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+    # graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
     logging.info('Done.')
 
 def json2neo4j(data, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
