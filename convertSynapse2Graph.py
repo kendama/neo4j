@@ -97,7 +97,7 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
                     ent['_type']='vertex'
                     ent['_id'] = newId.next()
                     ent['synId'] = synId
-                    ent['benefactorId'] = 'syn%s' % ent['benefactorId']
+                    # ent['benefactorId'] = 'syn%s' % ent['benefactorId']
                     ent['parentId'] = 'syn%s' % ent['parentId']
 
                     entityDict['%s.%s' %(ent['synId'],old['versionNumber'])] = OrderedDict(ent)
