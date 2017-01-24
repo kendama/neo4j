@@ -85,7 +85,7 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             #retrieve previous versions
 
             old_versions = syn.restGET("/entity/%s/version" % (ent['synId'],))
-            if old_versions['totalNumberOfResults'] > 1:
+            if old_versions['totalNumberOfResults'] > 0:
                 for old in old_versions['results']:
                     ent = dict(syn.get(ent['synId'], version=old['versionNumber'], downloadFile=False))
                     foo = ent.pop('annotations')
