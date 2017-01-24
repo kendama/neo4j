@@ -87,7 +87,7 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             old_versions = syn.restGET("/entity/%s/version" % (ent['synId'],))
             if old_versions['totalNumberOfResults'] > 0:
                 for old in old_versions['results']:
-                    ent = dict(syn.get(ent['synId'], version=old['versionNumber'], downloadFile=False))
+                    ent = dict(syn.get(ent['id'], version=old['versionNumber'], downloadFile=False))
                     foo = ent.pop('annotations')
                     for key in ent.keys():
                         #remove the "entity" portion of query
@@ -96,7 +96,7 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
                         ent[key] = item[0] if (type(item) is list and len(item)>0) else item
                     ent['_type']='vertex'
                     ent['_id'] = newId.next()
-                    ent['synId'] = synId
+                    ent['synId'] = ent.pop('id')
                     # ent['benefactorId'] = 'syn%s' % ent['benefactorId']
                     ent['parentId'] = 'syn%s' % ent['parentId']
 
