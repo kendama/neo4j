@@ -88,7 +88,7 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             if old_versions['totalNumberOfResults'] > 0:
                 for old in old_versions['results']:
                     ent = dict(syn.get(old['id'], version=old['versionNumber'], downloadFile=False))
-                    foo = ent.pop('annotations')
+                    ent.update(ent.pop('annotations'))
                     for key in ent.keys():
                         #remove the "entity" portion of query
                         new_key = '.'.join(key.split('.')[1:])
