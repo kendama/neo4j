@@ -65,23 +65,23 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             #Remove containers by ignoring layers, projects, and previews
             if ent['entity.nodeType'] in toIgnore:
                 continue
-            for key in ent.keys():
-                #remove the "entity" portion of query
-                new_key = '.'.join(key.split('.')[1:])
-                item = ent.pop(key)
-                ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
-
-            ent['_type']='vertex'
-            ent['_id'] = newId.next()
-            ent['synId'] = ent.pop('id')
-            ent['benefactorId'] = 'syn%s' % ent['benefactorId']
-            ent['parentId'] = 'syn%s' % ent['parentId']
-
-            synId = ent['synId']
-            versionNumber = ent['versionNumber']
-            entityDict['%s.%s' %(ent['synId'],versionNumber)] = OrderedDict(ent)
-            logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
-                                             ent['versionNumber']))
+            # for key in ent.keys():
+            #     #remove the "entity" portion of query
+            #     new_key = '.'.join(key.split('.')[1:])
+            #     item = ent.pop(key)
+            #     ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+            #
+            # ent['_type']='vertex'
+            # ent['_id'] = newId.next()
+            # ent['synId'] = ent.pop('id')
+            # ent['benefactorId'] = 'syn%s' % ent['benefactorId']
+            # ent['parentId'] = 'syn%s' % ent['parentId']
+            #
+            # synId = ent['synId']
+            # versionNumber = ent['versionNumber']
+            # entityDict['%s.%s' %(ent['synId'],versionNumber)] = OrderedDict(ent)
+            # logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
+            #                                  ent['versionNumber']))
             #retrieve previous versions
 
             old_versions = syn.restGET("/entity/%s/version" % (ent['synId'],))
