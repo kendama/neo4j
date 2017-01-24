@@ -65,11 +65,11 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             #Remove containers by ignoring layers, projects, and previews
             if ent['entity.nodeType'] in toIgnore:
                 continue
-            # for key in ent.keys():
-            #     #remove the "entity" portion of query
-            #     new_key = '.'.join(key.split('.')[1:])
-            #     item = ent.pop(key)
-            #     ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+            for key in ent.keys():
+                #remove the "entity" portion of query
+                new_key = '.'.join(key.split('.')[1:])
+                item = ent.pop(key)
+                ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
             #
             # ent['_type']='vertex'
             # ent['_id'] = newId.next()
@@ -84,10 +84,10 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
             #                                  ent['versionNumber']))
             #retrieve previous versions
 
-            old_versions = syn.restGET("/entity/%s/version" % (ent['synId'],))
+            old_versions = syn.restGET("/entity/%s/version" % (ent['id'],))
             if old_versions['totalNumberOfResults'] > 0:
                 for old in old_versions['results']:
-                    ent = dict(syn.get(ent['id'], version=old['versionNumber'], downloadFile=False))
+                    ent = dict(syn.get(old['id'], version=old['versionNumber'], downloadFile=False))
                     foo = ent.pop('annotations')
                     for key in ent.keys():
                         #remove the "entity" portion of query
@@ -97,11 +97,12 @@ def getEntities(syn, projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODE
                     ent['_type']='vertex'
                     ent['_id'] = newId.next()
                     ent['synId'] = ent.pop('id')
+                    ent['versionNumber'] = old['versionNumber']
                     # ent['benefactorId'] = 'syn%s' % ent['benefactorId']
                     ent['parentId'] = 'syn%s' % ent['parentId']
 
                     entityDict['%s.%s' %(ent['synId'],old['versionNumber'])] = OrderedDict(ent)
-                    logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
+                    logging.info('Getting version of entity (%i): %s.%i' %(ent['_id'],
                                                  ent['synId'], old['versionNumber']))
         except synapseclient.exceptions.SynapseHTTPError as e:
             sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
