@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 if __name__ == '__main__':
     logger = logging.getLogger()
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('activities', activities)]), fp, indent=4)
-    
+
     # if len(activities) > 0:
     #     print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
     #                                                                         float(len(nodes))/len(activities))
