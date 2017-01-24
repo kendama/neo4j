@@ -32,11 +32,20 @@ if __name__ == '__main__':
         nodes.update(cg.getEntities(syn=syn, projectId = proj))
     logging.info('Fetched %i entities' %len(nodes))
 
+    with open(json_file, 'w') as fp:
+        json.dump(OrderedDict([('vertices', nodes.values())]), fp, indent=4)
+
     getActivity = lambda x: cg.safeGetActivity(syn, x)
     activities = p.map(getActivity, nodes.items())
 
+    with open(json_file, 'w') as fp:
+        json.dump(OrderedDict([('vertices', nodes.values()), ('activities', activities)]), fp, indent=4)
+
     activities = cg.cleanUpActivities(activities)
 
+    with open(json_file, 'w') as fp:
+        json.dump(OrderedDict([('vertices', nodes.values()), ('activities', activities)]), fp, indent=4)
+    
     # if len(activities) > 0:
     #     print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
     #                                                                         float(len(nodes))/len(activities))
