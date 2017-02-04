@@ -54,6 +54,18 @@ def idGenerator(start=0):
 newIdGenerator = idGenerator()#29602)
 counter2 = idGenerator()
 
+def processEntDict(ent, newId=newIdGenerator):
+    for key in ent.keys():
+        ent[key] = ent[key][0] if (type(ent[key]) is list and len(ent[key])>0) else ent[key]
+    
+    ent['_type']='vertex'
+    ent['_id'] = newId.next()
+    ent['synId'] = ent.pop('id')
+    synId = ent['synId']
+    versionNumber = ent['versionNumber']
+
+    return ent
+
 def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES):
     '''get and format all entities with the inputted projectId'''
     logging.info('Getting and formatting all entities from %s' %projectId)
@@ -64,35 +76,34 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
             #Remove containers by ignoring layers, projects, and previews
             if ent['entity.nodeType'] in toIgnore: 
                 continue
+
             for key in ent.keys():
-                #remove the "entity" portion of query
                 new_key = '.'.join(key.split('.')[1:])
                 item = ent.pop(key)
-                ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
-            ent['_type']='vertex'
-            ent['_id'] = newId.next()
-            ent['synId'] = ent.pop('id')
-            synId = ent['synId']
-            versionNumber = ent['versionNumber']
-            entityDict['%s.%s' %(ent['synId'],versionNumber)] = ent 
+                ent[new_key] = item
+
+            ent = processEntDict(ent)
+            
+            entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent 
             logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
                                              ent['versionNumber']))
-            #retrieve previous versions
-            if int(versionNumber) > 1:
-                for version in range(1,int(versionNumber)):
-                    ent = syn.restGET('/entity/%s/version/%s' %(ent['synId'],version))
-                    for key in ent.keys():
-                        #remove the "entity" portion of query
-                        new_key = '.'.join(key.split('.')[1:])
-                        item = ent.pop(key)
-                        ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
-                    ent['_type']='vertex'
-                    ent['_id'] = newId.next()
-                    ent['synId'] = synId
-                    ent['versionNumber'] = version
-                    entityDict['%s.%s' %(ent['synId'],version)] = ent 
-                    logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
-                                                 ent['synId'], version))
+            # #retrieve previous versions
+            # if int(versionNumber) > 1:
+            #     for version in range(1,int(versionNumber)):
+            #         ent = syn.restGET('/entity/%s/version/%s' %(ent['synId'],version))
+            #         for key in ent.keys():
+            #             #remove the "entity" portion of query
+            #             new_key = '.'.join(key.split('.')[1:])
+            #             item = ent.pop(key)
+            #             ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
+            #         ent['_type']='vertex'
+            #         ent['_id'] = newId.next()
+            #         ent['synId'] = synId
+            #         ent['versionNumber'] = version
+            #         entityDict['%s.%s' %(ent['synId'],version)] = ent 
+            #         logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
+            #                                      ent['synId'], version))
+        
         except synapseclient.exceptions.SynapseHTTPError as e:
             sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
             continue 
@@ -123,7 +134,7 @@ def cleanUpActivities(activities, newId = newIdGenerator):
         returnDict[k] = activity
     return returnDict
     
-def buildEdgesfromActivities(nodes, activities):
+def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
     '''construct directed edges based on provenance'''
     logging.info('Constructing directed edges based on provenance')
     new_nodes = dict()
@@ -153,19 +164,21 @@ def buildEdgesfromActivities(nodes, activities):
     nodes.update(new_nodes)
     return edges
 
-def addNodesandEdges(used, nodes, activity, edges):
+def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
     #add missing vertices to nodes with edges
     if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
-        try:
-            targetId = '%s.%s' %(used['reference']['targetId'],
-                                 used['reference'].get('targetVersionNumber'))
-            if targetId not in nodes:
-                nodes[targetId] = { '_id': newId.next(),
-                                    '_type': 'vertex',
-                                    'synId' : used['reference']['targetId'],
-                                    'versionNumber': used['reference'].get('targetVersionNumber')}
-        except KeyError as e:
-            sys.stderr.write('Skipping current relationship for %s retrieval due to targetId %s' % (str(activity['_id']), str(e)) )   
+        targetId = '%s.%s' %(used['reference']['targetId'],
+                             used['reference'].get('targetVersionNumber'))
+        if targetId not in nodes:
+            ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'), 
+                          downloadFile=False)
+            
+            print dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'))
+            ent = processEntDict(dict(ent))
+            tmp = ent.pop('annotations')
+            
+            nodes[targetId] = ent
+        
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:

@@ -29,6 +29,7 @@ activityNodeQuery = """
 generatedByEdgeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
+    WITH erow WHERE erow._label = "generatedBy"
     MATCH (in_node:Entity { _id:erow._inV })
     MATCH (out_node:Activity { _id:erow._outV })
     MERGE (out_node)-[:GENERATED_BY { action:erow._label, id:erow._id }]->(in_node)
@@ -36,6 +37,7 @@ generatedByEdgeQuery = """
 usedEdgeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
+    WITH erow WHERE erow._label = "used"
     MATCH (in_node:Activity { _id:erow._inV })
     MATCH (out_node:Entity { _id:erow._outV })
     MERGE (out_node)-[:USED { action:erow._label, id:erow._id }]->(in_node)
@@ -51,9 +53,9 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
     nodes = tempfile.NamedTemporaryFile(prefix='vertices', suffix='.csv')
     edges = tempfile.NamedTemporaryFile(prefix='edges', suffix='.csv')
 
-    dir_info = os.stat('.')
-    uid = dir_info.st_uid
-    gid = dir_info.st_gid
+    # dir_info = os.stat('.')
+    # uid = dir_info.st_uid
+    # gid = dir_info.st_gid
 
     logging.info('Converting JSON to CSV')
     with open(jsonfilename) as json_file:
@@ -72,7 +74,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         print 'No edges/activities/provenance in graph'
 
         # Change file permission and ownership for Neo4j
-        os.chown(nodes.name, uid, gid) 
+        # os.chown(nodes.name, uid, gid) 
 
         # Add uniqueness constraints and indexing
         graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
@@ -86,6 +88,9 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
 
         graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
+
+
+
         logging.info('Done.')
 
         # Clean up directory and remove created files
@@ -94,11 +99,12 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         nodes.close()
 
     else:
+        print df2
         df2.to_csv(edges.name, index=False)
 
         # Change file permission and ownership for Neo4j
-        os.chown(nodes.name, uid, gid)
-        os.chown(edges.name, uid, gid)
+        # os.chown(nodes.name, uid, gid)
+        # os.chown(edges.name, uid, gid)
 
         # Add uniqueness constraints and indexing
         logging.info('Establishing uniqueness constraints and indexing for Neo4j')
@@ -107,17 +113,20 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         graph.run("CREATE INDEX ON :Entity(entity)")
 
         # Build query
+        logging.info('Loading data from CSV file(s) to Neo4j')
         for nodeQuery in node_queries:
             nodeQuery = nodeQuery % nodes.name
+            graph.run(nodeQuery)
         for edgeQuery in edge_queries:
-            edgeQuery = edgeQueries % edges.name
+            edgeQuery = edgeQuery % edges.name
+            graph.run(edgeQuery)
 
         # Send Cypher query
         logging.info('Loading data from CSV file(s) to Neo4j')
-        for nodeQuery in node_queries:
-            graph.run(nodeQuery)
-        for edgeQuery in edge_queries:
-            graph.run(edgeQuery)
+        # for nodeQuery in node_queries:
+        #     graph.run(nodeQuery)
+        # for edgeQuery in edge_queries:
+        #     graph.run(edgeQuery)
         graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
         graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
