@@ -44,7 +44,7 @@ if __name__ == '__main__':
     activities = p.map(cg.safeGetActivity, nodes.items())
     activities = cg.cleanUpActivities(activities)
     if len(activities) > 0:
-        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
+        print '%i activities found i.e. %f%% entities have provenance' %(len(activities),
                                                                             float(len(nodes))/len(activities))
     else:
         print 'This project lacks accessible information on provenance'
