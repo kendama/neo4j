@@ -40,7 +40,7 @@ usedEdgeQuery = """
     WITH erow WHERE erow._label = "used"
     MATCH (in_node:Activity { _id:erow._inV })
     MATCH (out_node:Entity { _id:erow._outV })
-    MERGE (out_node)-[:USED { action:erow._label, id:erow._id,wasExecuted:erow.wasExecuted }]->(in_node)
+    MERGE (out_node)-[:USED { action:erow._label, id:erow._id, wasExecuted:erow.wasExecuted }]->(in_node)
 """
 
 nodeQueries = [entityNodeQuery, activityNodeQuery]
