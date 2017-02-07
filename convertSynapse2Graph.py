@@ -175,7 +175,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                 ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'),
                               downloadFile=False)
             except Exception as e:
-                sys.stderr.write("Could not get %s.%s (%s)" % (targetId, used['reference'].get('targetVersionNumber'), e))
+                sys.stderr.write("Could not get %s (%s)" % (targetId, e))
                 return edges
 
             logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
