@@ -57,7 +57,7 @@ counter2 = idGenerator()
 def processEntDict(ent, newId=newIdGenerator):
     for key in ent.keys():
         ent[key] = ent[key][0] if (type(ent[key]) is list and len(ent[key])>0) else ent[key]
-    
+
     ent['_type']='vertex'
     ent['_id'] = newId.next()
     ent['synId'] = ent.pop('id')
@@ -74,7 +74,7 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
     for ent in query:
         try:
             #Remove containers by ignoring layers, projects, and previews
-            if ent['entity.nodeType'] in toIgnore: 
+            if ent['entity.nodeType'] in toIgnore:
                 continue
 
             for key in ent.keys():
@@ -83,8 +83,8 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
                 ent[new_key] = item
 
             ent = processEntDict(ent)
-            
-            entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent 
+
+            entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
             logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
                                              ent['versionNumber']))
             # #retrieve previous versions
@@ -100,13 +100,13 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
             #         ent['_id'] = newId.next()
             #         ent['synId'] = synId
             #         ent['versionNumber'] = version
-            #         entityDict['%s.%s' %(ent['synId'],version)] = ent 
+            #         entityDict['%s.%s' %(ent['synId'],version)] = ent
             #         logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
             #                                      ent['synId'], version))
-        
+
         except synapseclient.exceptions.SynapseHTTPError as e:
             sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
-            continue 
+            continue
     return entityDict
 
 def safeGetActivity(entity):
@@ -133,7 +133,7 @@ def cleanUpActivities(activities, newId = newIdGenerator):
         activity['_type'] = 'vertex'
         returnDict[k] = activity
     return returnDict
-    
+
 def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
     '''construct directed edges based on provenance'''
     logging.info('Constructing directed edges based on provenance')
@@ -170,15 +170,19 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
         targetId = '%s.%s' %(used['reference']['targetId'],
                              used['reference'].get('targetVersionNumber'))
         if targetId not in nodes:
-            ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'), 
-                          downloadFile=False)
+            try:
+                ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'),
+                              downloadFile=False)
+            except Exception as e:
+                print e.message
+                return edges
             
             print dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'))
             ent = processEntDict(dict(ent))
             tmp = ent.pop('annotations')
-            
+
             nodes[targetId] = ent
-        
+
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
@@ -210,7 +214,7 @@ if __name__ == '__main__':
                 'Creates a json file based on provenance for all Synapse projects')
     parser.add_argument('--p', type=int, default=4, help='Specify the pool size for the multiprocessing module')
     parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database') 
+    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
 
     p = mp.Pool(args.p)
