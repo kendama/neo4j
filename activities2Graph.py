@@ -12,6 +12,8 @@ from py2neo import Graph, authenticate
 syn = synapseclient.login()
 
 if __name__ == '__main__':
+    import os
+    
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -26,15 +28,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     proj_inputs = args.id
-    if args.j:
         json_file = args.j
-    else:
-        json_file = 'graph.json'
-    if args.p:
         p = mp.Pool(args.p)
-    else:  
         p = mp.Pool()
     nodes = dict()
+
+    with open(os.path.join(os.path.expanduser("~"), "credentials.json")) as creds:
+        db_info=json.load(creds)
 
     for proj in proj_inputs:
         print 'Getting entities from %s' %proj
@@ -56,8 +56,6 @@ if __name__ == '__main__':
 
     if args.l:
         logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as creds:
-            db_info=json.load(creds)
         authenticate(db_info['machine'], db_info['username'], db_info['password'])
         db_dir = db_info['machine'] + "/db/data"
         graph = Graph(db_dir)
