@@ -60,6 +60,8 @@ def processEntDict(ent):
 
     ent['_type']='vertex'
     ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
+    ent['benefactorId'] = "syn%s" % ent['benefactorId']
+    ent['projectId'] = "syn%s" % ent['projectId']
     ent['synId'] = ent.pop('id')
     versionNumber = ent['versionNumber']
 
