@@ -198,7 +198,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                   '_inV': activity['_id'],
                   '_type': 'edge',
                   '_outV': nodes[targetId]['_id'],
-                  '_label': 'used',
+                  '_label': 'executed' if used.get('wasExecuted', False) else 'used',
                   'wasExecuted': used.get('wasExecuted', False),
                   'createdBy': activity['createdBy'],
                   'createdOn': activity['createdOn'],
