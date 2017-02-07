@@ -42,10 +42,18 @@ usedEdgeQuery = """
     MATCH (out_node:Entity { _id:erow._outV })
     MERGE (out_node)-[:USED { action:erow._label, id:erow._id, wasExecuted:erow.wasExecuted }]->(in_node)
 """
+executedEdgeQuery = """
+    USING PERIODIC COMMIT 1000
+    LOAD CSV WITH HEADERS FROM "file://%s" AS erow
+    WITH erow WHERE erow._label = "executed"
+    MATCH (in_node:Activity { _id:erow._inV })
+    MATCH (out_node:Entity { _id:erow._outV })
+    MERGE (out_node)-[:EXECUTED { action:erow._label, id:erow._id, wasExecuted:erow.wasExecuted }]->(in_node)
+"""
 
 nodeQueries = [entityNodeQuery, activityNodeQuery]
 
-edgeQueries = [generatedByEdgeQuery, usedEdgeQuery]
+edgeQueries = [generatedByEdgeQuery, usedEdgeQuery, executedEdgeQuery]
 
 def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
     # Retrieve JSON/CSV file
