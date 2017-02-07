@@ -174,10 +174,10 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                 ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'),
                               downloadFile=False)
             except Exception as e:
-                print e.message
+                sys.stderr.write("Could not get %s.%s (%s)" (targetId, used['reference'].get('targetVersionNumber'), str(e)))
                 return edges
 
-            print dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'))
+            logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
             ent = processEntDict(dict(ent))
             tmp = ent.pop('annotations')
 
@@ -208,7 +208,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
 
 if __name__ == '__main__':
     import os
-    
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -250,8 +250,6 @@ if __name__ == '__main__':
 
     if args.l:
         logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open(os.path.join(os.path.expanduser('~'), "credentials.json")) as creds:
-            db_info=json.load(creds)
         authenticate(db_info['machine'], db_info['username'], db_info['password'])
         db_dir = db_info['machine'] + "/db/data"
         graph = Graph(db_dir)
