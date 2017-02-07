@@ -54,14 +54,13 @@ def idGenerator(start=0):
 newIdGenerator = idGenerator()#29602)
 counter2 = idGenerator()
 
-def processEntDict(ent, newId=newIdGenerator):
+def processEntDict(ent):
     for key in ent.keys():
         ent[key] = ent[key][0] if (type(ent[key]) is list and len(ent[key])>0) else ent[key]
 
     ent['_type']='vertex'
-    ent['_id'] = newId.next()
+    ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
     ent['synId'] = ent.pop('id')
-    synId = ent['synId']
     versionNumber = ent['versionNumber']
 
     return ent
@@ -85,8 +84,7 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
             ent = processEntDict(ent)
 
             entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
-            logging.info('Getting entity (%i): %s.%s' %(ent['_id'], ent['synId'],
-                                             ent['versionNumber']))
+            logging.info('Getting entity (%i)' % (ent['_id'], ))
             # #retrieve previous versions
             # if int(versionNumber) > 1:
             #     for version in range(1,int(versionNumber)):
@@ -127,9 +125,9 @@ def cleanUpActivities(activities, newId = newIdGenerator):
         logging.info('Cleaning up activity: %s' % k)
         if activity is None:
             continue
+        activity['_id'] = activity['id']
         activity['synId'] = activity.pop('id')
         activity['concreteType']='activity'
-        activity['_id'] = newId.next()
         activity['_type'] = 'vertex'
         returnDict[k] = activity
     return returnDict
