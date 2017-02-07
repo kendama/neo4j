@@ -154,6 +154,7 @@ def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
         edges.append({'_id': newId.next(),
+                      'synId': activity['synId'],
                       '_inV': entity['_id'],
                       '_outV': activity['_id'],
                       '_type':'edge', '_label':'generatedBy',
@@ -193,6 +194,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                               'concreteType': used['concreteType']}
     #Create the incoming edges
     edges.append({'_id': newId.next(),
+                  'synId': activity['synId'],
                   '_inV': activity['_id'],
                   '_type': 'edge',
                   '_outV': nodes[targetId]['_id'],
