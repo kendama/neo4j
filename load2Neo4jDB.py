@@ -1,5 +1,5 @@
 #This file must be contained in the import folder on the machine running
-#Neo4j. Otherwise, the user must change the configurations setting in 
+#Neo4j. Otherwise, the user must change the configurations setting in
 #conf/neo4j.conf
 import json
 import csv
@@ -40,7 +40,7 @@ usedEdgeQuery = """
     WITH erow WHERE erow._label = "used"
     MATCH (in_node:Activity { _id:erow._inV })
     MATCH (out_node:Entity { _id:erow._outV })
-    MERGE (out_node)-[:USED { action:erow._label, id:erow._id }]->(in_node)
+    MERGE (out_node)-[:USED { action:erow._label, id:erow._id,wasExecuted:erow.wasExecuted }]->(in_node)
 """
 
 nodeQueries = [entityNodeQuery, activityNodeQuery]
@@ -68,13 +68,13 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         df1 = df1.drop('description', 1)
     df1.to_csv(nodes.name, index=False)
     # index=False removes first column with null header
-    
+
     df2 = pd.DataFrame(JSON['edges'])
     if df2.empty:
         print 'No edges/activities/provenance in graph'
 
         # Change file permission and ownership for Neo4j
-        # os.chown(nodes.name, uid, gid) 
+        # os.chown(nodes.name, uid, gid)
 
         # Add uniqueness constraints and indexing
         graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
