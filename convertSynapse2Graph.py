@@ -60,7 +60,6 @@ def processEntDict(ent):
 
     ent['_type']='vertex'
     ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
-    ent['benefactorId'] = "syn%s" % ent['benefactorId']
     ent['projectId'] = "syn%s" % ent['projectId']
     ent['synId'] = ent.pop('id')
     versionNumber = ent['versionNumber']
@@ -83,6 +82,8 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
                 item = ent.pop(key)
                 ent[new_key] = item
 
+            ent['benefactorId'] = syn._getACL(ent['id'])['id']
+            
             ent = processEntDict(ent)
 
             entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
@@ -179,6 +180,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                 return edges
 
             logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
+            ent['benefactorId'] = syn._getACL(ent['id'])['id']
             ent = processEntDict(dict(ent))
             tmp = ent.pop('annotations')
 
