@@ -84,7 +84,7 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
             ent = processEntDict(ent)
 
             entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
-            logging.info('Getting entity (%i)' % (ent['_id'], ))
+            logging.info('Getting entity (%s)' % (ent['_id'], ))
             # #retrieve previous versions
             # if int(versionNumber) > 1:
             #     for version in range(1,int(versionNumber)):
@@ -111,7 +111,7 @@ def safeGetActivity(entity):
     '''retrieve activity/provenance associated with a particular entity'''
     k, ent = entity
     try:
-        print 'Getting Provenance for: %s (%i)' % (k,counter2.next())
+        print 'Getting Provenance for: %s' % (k, )
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
