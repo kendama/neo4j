@@ -13,7 +13,7 @@ syn = synapseclient.login()
 
 if __name__ == '__main__':
     import os
-    
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -23,14 +23,13 @@ if __name__ == '__main__':
                             [3, default: # of available cores] the mp pool size''')
     parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
+    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module', default=2)
     parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
 
     proj_inputs = args.id
-        json_file = args.j
-        p = mp.Pool(args.p)
-        p = mp.Pool()
+    json_file = args.j
+    p = mp.Pool(args.p)
     nodes = dict()
 
     with open(os.path.join(os.path.expanduser("~"), "credentials.json")) as creds:
