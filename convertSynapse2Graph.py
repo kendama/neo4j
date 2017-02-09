@@ -60,7 +60,11 @@ def processEntDict(ent):
 
     ent['_type']='vertex'
     ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
-    ent['projectId'] = "syn%s" % ent['projectId']
+
+    if not ent['projectId']:
+        ent['projectId'] = filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
+                                  syn.restGET("/entity/%s/path" % ent['id'])['path'])[0]
+
     ent['synId'] = ent.pop('id')
     versionNumber = ent['versionNumber']
 
@@ -83,7 +87,8 @@ def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES
                 ent[new_key] = item
 
             ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            
+            ent['projectId'] = projectId
+
             ent = processEntDict(ent)
 
             entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
