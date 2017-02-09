@@ -61,7 +61,7 @@ def processEntDict(ent):
     ent['_type']='vertex'
     ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
 
-    if not ent['projectId']:
+    if not ent.get('projectId', None):
         ent['projectId'] = filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
                                   syn.restGET("/entity/%s/path" % ent['id'])['path'])[0]
 
