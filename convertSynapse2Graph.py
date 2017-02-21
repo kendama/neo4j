@@ -61,7 +61,7 @@ counter2 = idGenerator()
 
 
 class MyEnt(UserDict.IterableUserDict):
-    def __init__(self, syn, d, projectId):
+    def __init__(self, syn, d, projectId=None, benefactorId=None):
         self._syn = syn
 
         UserDict.UserDict.__init__(self, d)
@@ -69,22 +69,24 @@ class MyEnt(UserDict.IterableUserDict):
         for key in self.data.keys():
             if type(self.data[key]) is list and len(self.data[key]) > 0:
                 self.data[key] = self.data[key][0]
-        
-        if projectId:
-            self.data['projectId'] = projectId
-        else:
-            self.data['projectId'] = filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
-                                            self._syn.restGET("/entity/%s/path" % self.data['id'])['path'])[0]
+
+        self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
+        self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
+
 
         self.data['_type'] = 'vertex'
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
         self.data['synId'] = self.data['id']
         self.data.pop('annotations')
 
-def processEntDict(ent):
+    @staticmethod
+    def _getProjectId(syn, synId):
+        return filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
+                      self._syn.restGET("/entity/%s/path" % synId)['path'])[0]
 
-
-    return ent
+    @staticmethod
+    def _getBenefactorId(syn, synId):
+        return syn._getACL(synId)['id']
 
 def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
     """Convert a Synapse versioned Entity from REST call to a dictionary.
@@ -103,11 +105,11 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
         logging.info("Bad entity type (%s)" % (ent['entityType'], ))
         return {}
 
-    ent['projectId'] = projectId
-    ent['benefactorId'] = syn._getACL(ent['id'])['id']
+    # ent['projectId'] = projectId
+    # ent['benefactorId'] = syn._getACL(ent['id'])['id']
 
     tmp = dict()
-    tmp['%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])] = processEntDict(ent)
+    tmp['%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])] = ent
     return tmp
 
 def getVersions(syn, synapseId, projectId, toIgnore):
@@ -209,8 +211,8 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
                 return edges
 
             logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
-            ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            ent = processEntDict(MyEnt(syn, ent, None))
+            # ent['benefactorId'] = syn._getACL(ent['id'])['id']
+            ent = processEntDict(MyEnt(syn, ent))
             tmp = ent.pop('annotations')
 
             nodes[targetId] = ent
