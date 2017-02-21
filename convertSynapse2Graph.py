@@ -67,8 +67,9 @@ class MyEnt(UserDict.IterableUserDict):
         UserDict.UserDict.__init__(self, d)
 
         for key in self.data.keys():
-            self.data[key] = self.data[key][0] if (type(self.data[key]) is list and len(self.data[key])>0) else self.data[key]
-
+            if type(self.data[key]) is list and len(self.data[key]) > 0:
+                self.data[key] = self.data[key][0]
+        
         if projectId:
             self.data['projectId'] = projectId
         else:
@@ -78,6 +79,7 @@ class MyEnt(UserDict.IterableUserDict):
         self.data['_type'] = 'vertex'
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
         self.data['synId'] = self.data['id']
+        self.data.pop('annotations')
 
 def processEntDict(ent):
 
