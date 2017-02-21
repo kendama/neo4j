@@ -5,6 +5,7 @@ import json
 import sys
 from collections import OrderedDict
 import multiprocessing
+import UserDict
 
 import synapseclient
 import synapseutils
@@ -58,18 +59,28 @@ def idGenerator(start=0):
 newIdGenerator = idGenerator()#29602)
 counter2 = idGenerator()
 
+
+class MyEnt(UserDict.IterableUserDict):
+    def __init__(self, syn, d, projectId):
+        self._syn = syn
+
+        UserDict.UserDict.__init__(self, d)
+
+        for key in self.data.keys():
+            self.data[key] = self.data[key][0] if (type(self.data[key]) is list and len(self.data[key])>0) else self.data[key]
+
+        if projectId:
+            self.data['projectId'] = projectId
+        else:
+            self.data['projectId'] = filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
+                                            self._syn.restGET("/entity/%s/path" % self.data['id'])['path'])[0]
+
+        self.data['_type'] = 'vertex'
+        self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
+        self.data['synId'] = self.data['id']
+
 def processEntDict(ent):
-    for key in ent.keys():
-        ent[key] = ent[key][0] if (type(ent[key]) is list and len(ent[key])>0) else ent[key]
 
-    ent['_type'] = 'vertex'
-    ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
-
-    if not ent.get('projectId', None):
-        ent['projectId'] = filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
-                                  syn.restGET("/entity/%s/path" % ent['id'])['path'])[0]
-
-    ent['synId'] = ent.pop('id')
 
     return ent
 
@@ -80,9 +91,10 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
 
     logging.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
 
-    ent = dict(syn.get(fileVersion['id'],
-                       version=fileVersion['versionNumber'],
-                       downloadFile=False))
+    ent = MyEnt(syn, syn.get(fileVersion['id'],
+                             version=fileVersion['versionNumber'],
+                             downloadFile=False),
+                projectId)
 
     #Remove containers by ignoring layers, projects, and previews
     if ent['entityType'] in toIgnore:
@@ -196,7 +208,7 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
 
             logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
             ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            ent = processEntDict(dict(ent))
+            ent = processEntDict(MyEnt(syn, ent, None))
             tmp = ent.pop('annotations')
 
             nodes[targetId] = ent
