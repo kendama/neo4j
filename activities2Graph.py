@@ -51,7 +51,7 @@ if __name__ == '__main__':
     edges = cg.buildEdgesfromActivities(nodes, activities)
     logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
     with open(json_file, 'w') as fp:
-        json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
+        json.dump(OrderedDict([('vertices', map(dict, nodes.values())), ('edges', edges)]), fp, indent=4)
 
     if args.l:
         logging.info('Connecting to Neo4j and authenticating user credentials')
