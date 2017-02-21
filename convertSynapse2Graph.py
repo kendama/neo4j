@@ -74,6 +74,10 @@ def processEntDict(ent):
     return ent
 
 def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
+    """Convert a Synapse versioned Entity from REST call to a dictionary.
+
+    """
+
     logging.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
 
     ent = dict(syn.get(fileVersion['id'],
@@ -82,7 +86,8 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
 
     #Remove containers by ignoring layers, projects, and previews
     if ent['entityType'] in toIgnore:
-        raise TypeError, "Bad entity type (%s)" % (ent['entityType'], )
+        logging.info("Bad entity type (%s)" % (ent['entityType'], ))
+        return {}
 
     ent['projectId'] = projectId
     ent['benefactorId'] = syn._getACL(ent['id'])['id']
@@ -91,17 +96,14 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
     tmp['%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])] = processEntDict(ent)
     return tmp
 
-def safeProcessEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
-    try:
-        return processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES)
-    except TypeError as e:
-        logging.info(e)
-        return {}
-
 def getVersions(syn, synapseId, projectId, toIgnore):
+    """Convert versions rest call to entity dictionary.
+
+    """
+
     entityDict = {}
     fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
-    map(lambda x: entityDict.update(safeProcessEnt(syn, x, projectId, toIgnore)), fileVersions)
+    map(lambda x: entityDict.update(processEnt(syn, x, projectId, toIgnore)), fileVersions)
     return entityDict
 
 def getEntities(projectId, toIgnore = IGNOREME_NODETYPES):
@@ -109,7 +111,7 @@ def getEntities(projectId, toIgnore = IGNOREME_NODETYPES):
 
     '''
 
-    p = multiprocessing.dummy.Pool(5)
+    p = multiprocessing.dummy.Pool(8)
 
     logging.info('Getting and formatting all entities from %s' % projectId)
 
