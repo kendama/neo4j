@@ -1,12 +1,15 @@
-import synapseclient
-import load2Neo4jDB as ndb
-from collections import OrderedDict
-import multiprocessing.dummy as mp
 import threading
 import argparse
 import logging
 import json
 import sys
+from collections import OrderedDict
+import multiprocessing
+
+import synapseclient
+import synapseutils
+
+import load2Neo4jDB as ndb
 
 syn = synapseclient.login()
 
@@ -16,7 +19,8 @@ NODETYPES = {0:'dataset',1: 'layer',2: 'project',3: 'preview',4: 'folder',
              13:'summary',14:'genomicdata',15:'page',16:'file',17:'table',
              18:'community'} #used in getEntities
 
-IGNOREME_NODETYPES = [1,2,3]
+IGNOREME_NODETYPES = ['org.sagebionetworks.repo.model.Project',
+                      'org.sagebionetworks.repo.model.Preview']
 
 SKIP_LIST = ['syn582072', 'syn3218329', 'syn2044761', 'syn2351328', 'syn1450028']
 
@@ -58,7 +62,7 @@ def processEntDict(ent):
     for key in ent.keys():
         ent[key] = ent[key][0] if (type(ent[key]) is list and len(ent[key])>0) else ent[key]
 
-    ent['_type']='vertex'
+    ent['_type'] = 'vertex'
     ent['_id'] = "%s.%s" % (ent['id'], ent['versionNumber'])
 
     if not ent.get('projectId', None):
@@ -66,53 +70,57 @@ def processEntDict(ent):
                                   syn.restGET("/entity/%s/path" % ent['id'])['path'])[0]
 
     ent['synId'] = ent.pop('id')
-    versionNumber = ent['versionNumber']
 
     return ent
 
-def getEntities(projectId, newId = newIdGenerator, toIgnore = IGNOREME_NODETYPES):
-    '''get and format all entities with the inputted projectId'''
-    logging.info('Getting and formatting all entities from %s' %projectId)
-    query = syn.chunkedQuery('select * from entity where projectId=="%s"' %projectId)
+def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
+    logging.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
+
+    ent = dict(syn.get(fileVersion['id'],
+                       version=fileVersion['versionNumber'],
+                       downloadFile=False))
+
+    #Remove containers by ignoring layers, projects, and previews
+    if ent['entityType'] in toIgnore:
+        raise TypeError, "Bad entity type (%s)" % (ent['entityType'], )
+
+    ent['projectId'] = projectId
+    ent['benefactorId'] = syn._getACL(ent['id'])['id']
+
+    tmp = dict()
+    tmp['%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])] = processEntDict(ent)
+    return tmp
+
+def safeProcessEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
+    try:
+        return processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES)
+    except TypeError as e:
+        logging.info(e)
+        return {}
+
+def getVersions(syn, synapseId, projectId, toIgnore):
+    entityDict = {}
+    fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
+    map(lambda x: entityDict.update(safeProcessEnt(syn, x, projectId, toIgnore)), fileVersions)
+    return entityDict
+
+def getEntities(projectId, toIgnore = IGNOREME_NODETYPES):
+    '''get and format all entities with the inputted projectId.
+
+    '''
+
+    p = multiprocessing.dummy.Pool(5)
+
+    logging.info('Getting and formatting all entities from %s' % projectId)
+
+    walker = synapseutils.walk(syn, projectId)
+    (rootdir, rootfolders, rootfiles) = walker.next()
+
     entityDict = dict()
-    for ent in query:
-        try:
-            #Remove containers by ignoring layers, projects, and previews
-            if ent['entity.nodeType'] in toIgnore:
-                continue
 
-            for key in ent.keys():
-                new_key = '.'.join(key.split('.')[1:])
-                item = ent.pop(key)
-                ent[new_key] = item
+    for (dirpath, dirnames, filenames) in walker:
+        p.map(lambda (x, y): entityDict.update(getVersions(syn, y, projectId, toIgnore)), filenames)
 
-            ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            ent['projectId'] = projectId
-
-            ent = processEntDict(ent)
-
-            entityDict['%s.%s' %(ent['synId'],ent['versionNumber'])] = ent
-            logging.info('Getting entity (%s)' % (ent['_id'], ))
-            # #retrieve previous versions
-            # if int(versionNumber) > 1:
-            #     for version in range(1,int(versionNumber)):
-            #         ent = syn.restGET('/entity/%s/version/%s' %(ent['synId'],version))
-            #         for key in ent.keys():
-            #             #remove the "entity" portion of query
-            #             new_key = '.'.join(key.split('.')[1:])
-            #             item = ent.pop(key)
-            #             ent[new_key] = item[0] if (type(item) is list and len(item)>0) else item
-            #         ent['_type']='vertex'
-            #         ent['_id'] = newId.next()
-            #         ent['synId'] = synId
-            #         ent['versionNumber'] = version
-            #         entityDict['%s.%s' %(ent['synId'],version)] = ent
-            #         logging.info('Getting previous version of entity (%i): %s.%i' %(ent['_id'],
-            #                                      ent['synId'], version))
-
-        except synapseclient.exceptions.SynapseHTTPError as e:
-            sys.stderr.write('Skipping current entity (%s) due to %s' % (str(ent['synId']), str(e)) )
-            continue
     return entityDict
 
 def safeGetActivity(entity):
