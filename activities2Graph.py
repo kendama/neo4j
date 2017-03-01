@@ -14,11 +14,12 @@ from py2neo import Graph, authenticate
 
 syn = synapseclient.login()
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 if __name__ == '__main__':
     import os
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description=
                 '''Please input [1] the synapse ID or space-separated list of synapse ID and

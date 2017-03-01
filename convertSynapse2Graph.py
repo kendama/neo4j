@@ -14,11 +14,14 @@ import load2Neo4jDB as ndb
 
 syn = synapseclient.login()
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 NODETYPES = {0:'dataset',1: 'layer',2: 'project',3: 'preview',4: 'folder',
              5: 'analysis',6: 'step', 7: 'code',8: 'link',9: 'phenotypedata',
              10:'genotypedata',11:'expressiondata',12:'robject',
              13:'summary',14:'genomicdata',15:'page',16:'file',17:'table',
-             18:'community'} #used in getEntities
+             18:'community'}
 
 IGNOREME_NODETYPES = ['org.sagebionetworks.repo.model.Project',
                       'org.sagebionetworks.repo.model.Preview']
@@ -76,10 +79,9 @@ class MyEnt(UserDict.IterableUserDict):
 
         self.data.pop('annotations')
 
+        # If not supplied, get the project and benefactor of the entity
         self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
         self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
-
-        self.data['_type'] = 'vertex'
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
         self.data['synId'] = self.data['id']
 
@@ -97,7 +99,7 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
 
     """
 
-    logging.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
+    logger.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
 
     ent = MyEnt(syn, syn.get(fileVersion['id'],
                              version=fileVersion['versionNumber'],
@@ -106,7 +108,7 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
 
     #Remove containers by ignoring layers, projects, and previews
     if ent['entityType'] in toIgnore:
-        logging.info("Bad entity type (%s)" % (ent['entityType'], ))
+        logger.info("Bad entity type (%s)" % (ent['entityType'], ))
         return {}
 
     # ent['projectId'] = projectId
@@ -137,7 +139,7 @@ def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
 
     p = multiprocessing.dummy.Pool(8)
 
-    logging.info('Getting and formatting all entities from %s' % projectId)
+    logger.info('Getting and formatting all entities from %s' % projectId)
 
     q = syn.chunkedQuery('select id from file where projectId=="%s"' % projectId)
     walker = synFileIdWalker(q)
@@ -152,42 +154,48 @@ def safeGetActivity(entity):
     '''retrieve activity/provenance associated with a particular entity'''
     k, ent = entity
     try:
-        print 'Getting Provenance for: %s' % (k, )
+        logger.debug('Getting Provenance for: %s' % (k, ))
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
         return (k, prov)
     except synapseclient.exceptions.SynapseHTTPError:
         return (k, None)
 
 def cleanUpActivities(activities):
-    '''remove all activity-less entities'''
-    logging.info('Removing all activity-less entities')
+    """remove all activity-less entities
+
+    """
+
+    logger.debug('Removing all activity-less entities')
     returnDict = dict()
+
     for k,activity in activities:
-        logging.info('Cleaning up activity: %s' % k)
+        logger.debug('Cleaning up activity: %s' % k)
+
         if activity is None:
             continue
+
         activity['_id'] = activity['id']
         activity['synId'] = activity.pop('id')
-        # activity['concreteType']='activity'
-        activity['_type'] = 'vertex'
         returnDict[k] = activity
+    
     return returnDict
 
 def buildEdgesfromActivities(nodes, activities):
-    '''Construct directed edges based on provenance.
+    """Construct directed edges based on provenance.
 
-    '''
+    """
 
-    logging.info('Constructing directed edges based on provenance')
+    logger.info('Constructing directed edges based on provenance')
     new_nodes = dict()
     edges = list()
     for k, entity in nodes.items():
-        print 'processing entity:', k
+        logger.debug('processing entity: %s' % k)
         if k not in activities:
             continue
         activity = activities[k]
         #Determine if we have already seen this activity
         if activity['synId'] not in new_nodes:
+            logger.debug("%s not in new_nodes" % (activity['synId'], ))
             new_nodes[activity['synId']]  = activity
             #Add input relationships
             for used in activity['used']:
@@ -199,7 +207,7 @@ def buildEdgesfromActivities(nodes, activities):
                       'synId': activity['synId'],
                       '_inV': entity['_id'],
                       '_outV': activity['_id'],
-                      '_type':'edge', '_label':'generatedBy',
+                      '_label':'generatedBy',
                       'createdBy': activity['createdBy'],
                       'createdOn': activity['createdOn'],
                       'modifiedBy':activity['modifiedBy'],
@@ -217,10 +225,10 @@ def addNodesandEdges(used, nodes, activity, edges):
                 ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'),
                               downloadFile=False)
             except Exception as e:
-                logging.error("Could not get %s (%s)\n" % (targetId, e))
+                logger.error("Could not get %s (%s)\n" % (targetId, e))
                 return edges
 
-            logging.info(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
+            logger.debug(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
             # ent['benefactorId'] = syn._getACL(ent['id'])['id']
             ent = processEntDict(MyEnt(syn, ent))
             tmp = ent.pop('annotations')
@@ -231,7 +239,6 @@ def addNodesandEdges(used, nodes, activity, edges):
         targetId = used['url']
         if not targetId in nodes:
             nodes[targetId]= {'_id': IDGENERATOR.next(),
-                              '_type': 'vertex',
                               'name': used.get('name'),
                               'url': used['url'],
                               'concreteType': used['concreteType']}
@@ -239,7 +246,6 @@ def addNodesandEdges(used, nodes, activity, edges):
     edges.append({'_id': IDGENERATOR.next(),
                   'synId': activity['synId'],
                   '_inV': activity['_id'],
-                  '_type': 'edge',
                   '_outV': nodes[targetId]['_id'],
                   '_label': 'executed' if used.get('wasExecuted', False) else 'used',
                   'wasExecuted': used.get('wasExecuted', False),
@@ -254,8 +260,8 @@ def addNodesandEdges(used, nodes, activity, edges):
 if __name__ == '__main__':
     import os
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    # logger = logging.getLogger()
+    # logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description=
                 'Creates a json file based on provenance for all Synapse projects')
@@ -276,25 +282,25 @@ if __name__ == '__main__':
         if proj in SKIP_LIST:
             print "Skipping"
             continue
-        print 'Getting entities from %s' %proj['project.id']
+        logger.info('Getting entities from %s' %proj['project.id'])
         nodes.update( getEntities( projectId = str(proj['project.id']) ) )
-    logging.info('Fetched %i entities' %len(nodes))
+    logger.info('Fetched %i entities' %len(nodes))
 
     activities = p.map(safeGetActivity, nodes.items())
     activities = cleanUpActivities(activities)
     if len(activities) > 0:
-        print '%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
-                                                                            float(len(nodes))/len(activities))
+        logger.info('%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
+                                                                            float(len(nodes))/len(activities)))
     else:
-        print 'This project lacks accessible information on provenance'
+        logger.info('This project lacks accessible information on provenance')
 
     edges = buildEdgesfromActivities(nodes, activities)
-    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
+    logger.info('I have %i nodes and %i edges' %(len(nodes), len(edges)))
     with open(json_file, 'w') as fp:
         json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
 
     if args.l:
-        logging.info('Connecting to Neo4j and authenticating user credentials')
+        logger.info('Connecting to Neo4j and authenticating user credentials')
         authenticate(db_info['machine'], db_info['username'], db_info['password'])
         db_dir = db_info['machine'] + "/db/data"
         graph = Graph(db_dir)
@@ -302,5 +308,5 @@ if __name__ == '__main__':
         try:
             ndb.json2neo4j(str(json_file), graph)
         except:
-            logging.error('Error involving loading data from json file to Neo4j database')
+            logger.error('Error involving loading data from json file to Neo4j database')
             raise

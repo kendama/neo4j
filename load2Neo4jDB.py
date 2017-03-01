@@ -11,6 +11,9 @@ import argparse
 import tempfile
 from py2neo import Graph, authenticate
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 # Preconstructed queries
 entityNodeQuery = """
     USING PERIODIC COMMIT 1000
@@ -147,8 +150,6 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         edges.close()
 
 if __name__ == '__main__':
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description=
                 'Please input the name of json outfile to load graph data to Neo4j database')
