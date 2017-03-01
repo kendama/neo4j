@@ -61,23 +61,29 @@ counter2 = idGenerator()
 
 
 class MyEnt(UserDict.IterableUserDict):
+    """A dictionary representation of a Synapse entity.
+
+    Annotations are preprocessed for those that are containers and returned the first item.
+
+    """
+
     def __init__(self, syn, d, projectId=None, benefactorId=None):
         self._syn = syn
 
-        UserDict.UserDict.__init__(self, d)
+        UserDict.IterableUserDict.__init__(self, d)
 
         for key in self.data.keys():
             if type(self.data[key]) is list and len(self.data[key]) > 0:
                 self.data[key] = self.data[key][0]
 
+        self.data.pop('annotations')
+        
         self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
         self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
-
 
         self.data['_type'] = 'vertex'
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
         self.data['synId'] = self.data['id']
-        self.data.pop('annotations')
 
     @staticmethod
     def _getProjectId(syn, synId):
@@ -122,8 +128,8 @@ def getVersions(syn, synapseId, projectId, toIgnore):
     map(lambda x: entityDict.update(processEnt(syn, x, projectId, toIgnore)), fileVersions)
     return entityDict
 
-def getEntities(projectId, toIgnore = IGNOREME_NODETYPES):
-    '''get and format all entities with the inputted projectId.
+def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
+    '''Get and format all entities with from a Project.
 
     '''
 
@@ -132,8 +138,7 @@ def getEntities(projectId, toIgnore = IGNOREME_NODETYPES):
     logging.info('Getting and formatting all entities from %s' % projectId)
 
     walker = synapseutils.walk(syn, projectId)
-    (rootdir, rootfolders, rootfiles) = walker.next()
-
+    # walker = syn.chunkedQuery('select id from file where projectId=="%s"' % projectId)
     entityDict = dict()
 
     for (dirpath, dirnames, filenames) in walker:
@@ -161,7 +166,7 @@ def cleanUpActivities(activities, newId = newIdGenerator):
             continue
         activity['_id'] = activity['id']
         activity['synId'] = activity.pop('id')
-        activity['concreteType']='activity'
+        # activity['concreteType']='activity'
         activity['_type'] = 'vertex'
         returnDict[k] = activity
     return returnDict
