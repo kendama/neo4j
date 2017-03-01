@@ -6,6 +6,8 @@ import os
 
 from py2neo import Graph, authenticate
 
+import load2Neo4jDB
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,7 @@ if __name__ == '__main__':
     graph = Graph(db_dir)
 
     try:
-        ndb.json2neo4j(str(json_file), graph)
+        load2Neo4jDB.json2neo4j(str(json_file), graph)
     except:
         logging.error('Error involving loading data from json file to Neo4j database')
         raise
