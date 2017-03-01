@@ -88,7 +88,7 @@ class MyEnt(UserDict.IterableUserDict):
     @staticmethod
     def _getProjectId(syn, synId):
         return filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
-                      syn.restGET("/entity/%s/path" % synId)['path'])[0]
+                      syn.restGET("/entity/%s/path" % synId)['path'])[0]['id']
 
     @staticmethod
     def _getBenefactorId(syn, synId):
