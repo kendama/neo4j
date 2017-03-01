@@ -83,7 +83,7 @@ class MyEntity(UserDict.IterableUserDict):
         self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
         self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
-        self.data['synId'] = self.data['id']
+        self.data['synId'] = self.data.pop('id')
 
     @staticmethod
     def _getProjectId(syn, synId):
