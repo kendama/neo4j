@@ -45,7 +45,7 @@ if __name__ == '__main__':
         q = syn.chunkedQuery('select id from project')
         args.id = SynapseGraph.synFileIdWalker(q)
     for proj in args.id:
-        if proj in SKIP_LIST:
+        if proj in convertSynapse2Graph.SKIP_LIST:
             logger.info("Skipping %s" % proj)
             continue
         else:
