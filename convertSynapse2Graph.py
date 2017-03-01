@@ -12,7 +12,7 @@ import synapseutils
 
 import load2Neo4jDB as ndb
 
-syn = synapseclient.login()
+syn = synapseclient.login(silent=True)
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -294,7 +294,7 @@ if __name__ == '__main__':
 
     for proj in projects:
         if proj in SKIP_LIST:
-            print "Skipping"
+            logger.info("Skipping %s" % proj)
             continue
         logger.info('Getting entities from %s' %proj['project.id'])
         nodes.update( getEntities( projectId = str(proj['project.id']) ) )
