@@ -43,19 +43,19 @@ if __name__ == '__main__':
     if not args.id:
         logger.warn("No Project ids given, getting all projects from Synapse.")
         q = syn.chunkedQuery('select id from project')
-        args.id = SynapseGraph.synFileIdWalker(q)
+        args.id = SynapseToGraph.synFileIdWalker(q)
     for proj in args.id:
-        if proj in convertSynapse2Graph.SKIP_LIST:
+        if proj in SynapseToGraph.SKIP_LIST:
             logger.info("Skipping %s" % proj)
             continue
         else:
             logger.info('Getting entities from %s' %proj)
-            nodes.update(convertSynapse2Graph.processEntities(projectId = proj))
+            nodes.update(SynapseToGraph.processEntities(projectId = proj))
 
     logger.info('Fetched %i entities' % len(nodes))
 
-    activities = p.map(convertSynapse2Graph.safeGetActivity, nodes.items())
-    activities = convertSynapse2Graph.cleanUpActivities(activities)
+    activities = p.map(SynapseToGraph.safeGetActivity, nodes.items())
+    activities = SynapseToGraph.cleanUpActivities(activities)
 
     if len(activities) > 0:
         logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     else:
         print 'This project lacks accessible information on provenance'
 
-    edges = convertSynapse2Graph.buildEdgesfromActivities(nodes, activities)
+    edges = SynapseToGraph.buildEdgesfromActivities(nodes, activities)
     logger.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
 
     if args.load:

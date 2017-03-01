@@ -6,7 +6,7 @@ import os
 
 from py2neo import Graph, authenticate
 
-import load2Neo4jDB
+import GraphToNeo4j
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
