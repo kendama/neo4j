@@ -88,7 +88,7 @@ class MyEnt(UserDict.IterableUserDict):
     @staticmethod
     def _getProjectId(syn, synId):
         return filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
-                      self._syn.restGET("/entity/%s/path" % synId)['path'])[0]
+                      syn.restGET("/entity/%s/path" % synId)['path'])[0]
 
     @staticmethod
     def _getBenefactorId(syn, synId):
@@ -236,16 +236,16 @@ def addNodesandEdges(used, nodes, activity, edges):
                              used['reference'].get('targetVersionNumber'))
         if targetId not in nodes:
             try:
-                ent = syn.get(used['reference']['targetId'], version=used['reference'].get('targetVersionNumber'),
+                ent = syn.get(used['reference']['targetId'],
+                              version=used['reference'].get('targetVersionNumber'),
                               downloadFile=False)
+                ent = MyEnt(syn, ent)
             except Exception as e:
                 logger.error("Could not get %s (%s)\n" % (targetId, e))
                 return edges
 
             logger.debug(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
             # ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            ent = processEntDict(MyEnt(syn, ent))
-            tmp = ent.pop('annotations')
 
             nodes[targetId] = ent
 
