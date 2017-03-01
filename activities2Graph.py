@@ -1,6 +1,3 @@
-import synapseclient
-import load2Neo4jDB as ndb
-import convertSynapse2Graph
 import multiprocessing.dummy as mp
 import threading
 import argparse
@@ -8,11 +5,13 @@ import logging
 import json
 import tempfile
 import sys
-
 from collections import OrderedDict
+
+import synapseclient
 from py2neo import Graph, authenticate
 
-syn = synapseclient.login()
+import load2Neo4jDB
+import convertSynapse2Graph
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -29,6 +28,8 @@ if __name__ == '__main__':
     parser.add_argument('-n', type=int, help='Specify the pool size for the multiprocessing module', default=2)
     parser.add_argument('-l', '--load', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
+
+    syn = synapseclient.login(silent=True)
 
     p = mp.Pool(args.n)
 
@@ -67,7 +68,7 @@ if __name__ == '__main__':
             db_dir = db_info['machine'] + "/db/data"
             graph = Graph(db_dir)
 
-            ndb.json2neo4j(fp.name, graph)
+            load2Neo4jDB.json2neo4j(fp.name, graph)
     else:
         with sys.stdout as fp:
             json.dump(OrderedDict([('vertices', map(dict, nodes.values())), ('edges', edges)]), fp, indent=4)
