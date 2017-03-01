@@ -177,7 +177,7 @@ def cleanUpActivities(activities):
         activity['_id'] = activity['id']
         activity['synId'] = activity.pop('id')
         returnDict[k] = activity
-    
+
     return returnDict
 
 def buildEdgesfromActivities(nodes, activities):
@@ -186,22 +186,29 @@ def buildEdgesfromActivities(nodes, activities):
     """
 
     logger.info('Constructing directed edges based on provenance')
+
     new_nodes = dict()
     edges = list()
+
     for k, entity in nodes.items():
         logger.debug('processing entity: %s' % k)
+
         if k not in activities:
             continue
+
         activity = activities[k]
+
         #Determine if we have already seen this activity
         if activity['synId'] not in new_nodes:
             logger.debug("%s not in new_nodes" % (activity['synId'], ))
             new_nodes[activity['synId']]  = activity
+
             #Add input relationships
             for used in activity['used']:
                 edges = addNodesandEdges(used, nodes, activity, edges)
         else:
             activity = new_nodes[activity['synId']]
+
         #Add generated relationship (i.e. out edge)
         edges.append({'_id': IDGENERATOR.next(),
                       'synId': activity['synId'],
@@ -212,7 +219,9 @@ def buildEdgesfromActivities(nodes, activities):
                       'createdOn': activity['createdOn'],
                       'modifiedBy':activity['modifiedBy'],
                       'modifiedOn':activity['modifiedOn']})
+
     nodes.update(new_nodes)
+    
     return edges
 
 def addNodesandEdges(used, nodes, activity, edges):
