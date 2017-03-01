@@ -61,7 +61,7 @@ def idGenerator(start=0):
 
 IDGENERATOR = idGenerator()
 
-class MyEnt(UserDict.IterableUserDict):
+class MyEntity(UserDict.IterableUserDict):
     """A dictionary representation of a Synapse entity.
 
     Annotations are preprocessed for those that are containers and returned the first item.
@@ -95,28 +95,24 @@ class MyEnt(UserDict.IterableUserDict):
         return syn._getACL(synId)['id']
 
 def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
-    """Convert a Synapse versioned Entity from REST call to a MyEnt dictionary.
+    """Convert a Synapse versioned Entity from REST call to a MyEntity dictionary.
 
     """
 
     logger.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
-
-    ent = MyEnt(syn, syn.get(fileVersion['id'],
+    ent = syn.get(fileVersion['id'],
                              version=fileVersion['versionNumber'],
-                             downloadFile=False),
-                projectId)
+                             downloadFile=False)
 
     #Remove containers by ignoring layers, projects, and previews
     if ent['entityType'] in toIgnore:
         logger.info("Bad entity type (%s)" % (ent['entityType'], ))
         return {}
 
-    # ent['projectId'] = projectId
-    # ent['benefactorId'] = syn._getACL(ent['id'])['id']
-
-    tmp = dict()
-    tmp['%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])] = ent
-    return tmp
+    ent = MyEntity(syn, ent, projectId)
+    k = '%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])
+    
+    return {k: ent}
 
 def getVersions(syn, synapseId, projectId, toIgnore):
     """Convert versions rest call to entity dictionary.
@@ -244,7 +240,7 @@ def addNodesandEdges(used, nodes, activity, edges):
 
             logger.debug(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
             # ent['benefactorId'] = syn._getACL(ent['id'])['id']
-            ent = processEntDict(MyEnt(syn, ent))
+            ent = processEntDict(MyEntity(syn, ent))
             tmp = ent.pop('annotations')
 
             nodes[targetId] = ent
