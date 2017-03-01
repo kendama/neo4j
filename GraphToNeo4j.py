@@ -58,6 +58,28 @@ nodeQueries = [entityNodeQuery, activityNodeQuery]
 
 edgeQueries = [generatedByEdgeQuery, usedEdgeQuery, executedEdgeQuery]
 
+def json2csv(jsonfilename, node_csv, edge_csv):
+    # Retrieve JSON/CSV file
+
+    logger.info('Converting %s to CSV' % jsonfilename)
+    with open(jsonfilename) as json_file:
+        JSON = json.load(json_file)
+
+    df1 = pd.DataFrame(JSON['vertices'])
+
+    if 'used' in df1.columns:
+        df1 = df1.drop('used', 1)
+
+    if 'description' in df1.columns:
+        df1 = df1.drop('description', 1)
+
+    df1.to_csv(nodes_csv, index=False)
+
+    # index=False removes first column with null header
+
+    df2 = pd.DataFrame(JSON['edges'])
+    df2.to_csv(edges_csv, index=False)
+
 def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
     # Retrieve JSON/CSV file
     logger.info('Creating temporary JSON/CSV file')

@@ -18,8 +18,7 @@ if __name__ == '__main__':
     parser.add_argument('--credentials', metavar='FILE', help='neo4j credentials file',
                         default=os.path.join(os.path.expanduser("~"), "credentials.json"))
     args = parser.parse_args()
-
-
+    
     logger.info('Connecting to Neo4j and authenticating user credentials')
     with open(args.credentials) as creds:
         db_info = json.load(creds)
