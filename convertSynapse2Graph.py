@@ -10,7 +10,7 @@ import UserDict
 import synapseclient
 import synapseutils
 
-import load2Neo4jDB as ndb
+import GraphToNeo4j
 
 syn = synapseclient.login(silent=True)
 
@@ -111,7 +111,7 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
 
     ent = MyEntity(syn, ent, projectId)
     k = '%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])
-    
+
     return {k: ent}
 
 def getVersions(syn, synapseId, projectId, toIgnore):
@@ -265,58 +265,3 @@ def addNodesandEdges(used, nodes, activity, edges):
                   'modifiedOn':activity['modifiedOn']})
 
     return edges
-
-
-if __name__ == '__main__':
-    import os
-
-    # logger = logging.getLogger()
-    # logger.setLevel(logging.INFO)
-
-    parser = argparse.ArgumentParser(description=
-                'Creates a json file based on provenance for all Synapse projects')
-    parser.add_argument('--p', type=int, default=4, help='Specify the pool size for the multiprocessing module')
-    parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
-    args = parser.parse_args()
-
-    p = mp.Pool(args.p)
-    if args.j:
-        json_file = args.j
-    else:
-        json_file = 'graphSynapse.json'
-    projects = syn.chunkedQuery("select id from project")
-    nodes = dict()
-
-    for proj in projects:
-        if proj in SKIP_LIST:
-            logger.info("Skipping %s" % proj)
-            continue
-        logger.info('Getting entities from %s' %proj['project.id'])
-        nodes.update( getEntities( projectId = str(proj['project.id']) ) )
-    logger.info('Fetched %i entities' %len(nodes))
-
-    activities = p.map(safeGetActivity, nodes.items())
-    activities = cleanUpActivities(activities)
-    if len(activities) > 0:
-        logger.info('%i activities found i.e. %0.2g%% entities have provenance' %(len(activities),
-                                                                            float(len(nodes))/len(activities)))
-    else:
-        logger.info('This project lacks accessible information on provenance')
-
-    edges = buildEdgesfromActivities(nodes, activities)
-    logger.info('I have %i nodes and %i edges' %(len(nodes), len(edges)))
-    with open(json_file, 'w') as fp:
-        json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
-
-    if args.l:
-        logger.info('Connecting to Neo4j and authenticating user credentials')
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
-
-        try:
-            ndb.json2neo4j(str(json_file), graph)
-        except:
-            logger.error('Error involving loading data from json file to Neo4j database')
-            raise
