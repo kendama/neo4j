@@ -143,32 +143,3 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         logger.debug('Removing csv files from local directory')
         nodes.close()
         edges.close()
-
-if __name__ == '__main__':
-
-    logger = logging.getLogger(__name__)
-
-    parser = argparse.ArgumentParser(description=
-                'Please input the name of json outfile to load graph data to Neo4j database')
-    parser.add_argument('js', metavar='json', help='Input the name of pregenerated json file')
-    args = parser.parse_args()
-
-    if len(sys.argv) != 2:
-        print 'Incorrect number of arguments'
-        print 'Please input the name of json outfile to graph provenance'
-        sys.exit(1)
-    else:
-        # Connect to graph
-        logger.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as json_file:
-            db_info=json.load(json_file)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
-
-        jsonfile = args.js
-        try:
-            json2neo4j(str(jsonfile), graph)
-        except:
-            print 'Error involving loading data from json file to Neo4j database'
-            raise
