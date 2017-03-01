@@ -221,7 +221,7 @@ def buildEdgesfromActivities(nodes, activities):
                       'modifiedOn':activity['modifiedOn']})
 
     nodes.update(new_nodes)
-    
+
     return edges
 
 def addNodesandEdges(used, nodes, activity, edges):

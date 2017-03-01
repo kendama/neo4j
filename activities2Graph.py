@@ -37,16 +37,17 @@ if __name__ == '__main__':
     if args.load:
         with open(os.path.join(os.path.expanduser("~"), "credentials.json")) as creds:
             db_info = json.load(creds)
-            logging.info("Loaded neo4j credentials.")
+            logger.info("Loaded neo4j credentials.")
 
     for proj in args.id:
-        print 'Getting entities from %s' %proj
+        logger.info('Getting entities from %s' %proj)
         nodes.update(convertSynapse2Graph.processEntities(projectId = proj))
 
-    logging.info('Fetched %i entities' % len(nodes))
+    logger.info('Fetched %i entities' % len(nodes))
 
     activities = p.map(convertSynapse2Graph.safeGetActivity, nodes.items())
     activities = convertSynapse2Graph.cleanUpActivities(activities)
+
     if len(activities) > 0:
         print '%i activities found i.e. %f%% entities have provenance' %(len(activities),
                                                                             float(len(nodes))/len(activities))
@@ -54,15 +55,14 @@ if __name__ == '__main__':
         print 'This project lacks accessible information on provenance'
 
     edges = convertSynapse2Graph.buildEdgesfromActivities(nodes, activities)
-    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-
+    logger.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
 
     if args.load:
         tmpfile = tempfile.NamedTemporaryFile()
         with tempfile.NamedTemporaryFile(suffix=".json") as fp:
             json.dump(OrderedDict([('vertices', map(dict, nodes.values())), ('edges', edges)]), fp, indent=4)
 
-            logging.info('Connecting to Neo4j and authenticating user credentials')
+            logger.info('Connecting to Neo4j and authenticating user credentials')
             authenticate(db_info['machine'], db_info['username'], db_info['password'])
             db_dir = db_info['machine'] + "/db/data"
             graph = Graph(db_dir)
