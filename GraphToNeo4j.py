@@ -73,12 +73,12 @@ def json2csv(jsonfilename, node_csv, edge_csv):
     if 'description' in df1.columns:
         df1 = df1.drop('description', 1)
 
-    df1.to_csv(nodes_csv, index=False)
+    df1.to_csv(node_csv, index=False)
 
     # index=False removes first column with null header
 
     df2 = pd.DataFrame(JSON['edges'])
-    df2.to_csv(edges_csv, index=False)
+    df2.to_csv(edge_csv, index=False)
 
 def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
     # Retrieve JSON/CSV file
