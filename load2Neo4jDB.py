@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 entityNodeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
-    WITH dvs WHERE NOT dvs.concreteType = "activity"
+    WITH dvs WHERE NOT dvs.concreteType = "org.sagebionetworks.repo.model.provenance.Activity"
        MERGE (entity:Entity {id:dvs._id}) ON CREATE
        SET entity = dvs
 """
 activityNodeQuery = """
     USING PERIODIC COMMIT 1000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
-    WITH dvs WHERE dvs.concreteType = "activity"
+    WITH dvs WHERE dvs.concreteType = "org.sagebionetworks.repo.model.provenance.Activity"
        MERGE (activity:Activity {id:dvs._id}) ON CREATE
        SET activity = dvs
 """
