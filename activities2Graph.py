@@ -11,7 +11,7 @@ import synapseclient
 from py2neo import Graph, authenticate
 
 import GraphToNeo4j
-import convertSynapse2Graph
+import SynapseToGraph
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
