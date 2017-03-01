@@ -10,7 +10,7 @@ from collections import OrderedDict
 import synapseclient
 from py2neo import Graph, authenticate
 
-import load2Neo4jDB
+import GraphToNeo4j
 import convertSynapse2Graph
 
 logging.basicConfig(level=logging.DEBUG)
@@ -24,7 +24,7 @@ if __name__ == '__main__':
                 '''Please input [1] the synapse ID or space-separated list of synapse ID and
                             [2, default: graph.json] the name of json outfile to graph provenance and
                             [3, default: # of available cores] the mp pool size''')
-    parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
+    parser.add_argument('id', metavar='synId', nargs='*', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('-n', type=int, help='Specify the pool size for the multiprocessing module', default=2)
     parser.add_argument('-l', '--load', action='store_true', default=False, help='Load data from json file to Neo4j database')
     args = parser.parse_args()
@@ -40,9 +40,17 @@ if __name__ == '__main__':
             db_info = json.load(creds)
             logger.info("Loaded neo4j credentials.")
 
+    if not args.id:
+        logger.warn("No Project ids given, getting all projects from Synapse.")
+        q = syn.chunkedQuery('select id from project')
+        args.id = SynapseGraph.synFileIdWalker(q)
     for proj in args.id:
-        logger.info('Getting entities from %s' %proj)
-        nodes.update(convertSynapse2Graph.processEntities(projectId = proj))
+        if proj in SKIP_LIST:
+            logger.info("Skipping %s" % proj)
+            continue
+        else:
+            logger.info('Getting entities from %s' %proj)
+            nodes.update(convertSynapse2Graph.processEntities(projectId = proj))
 
     logger.info('Fetched %i entities' % len(nodes))
 
@@ -68,7 +76,7 @@ if __name__ == '__main__':
             db_dir = db_info['machine'] + "/db/data"
             graph = Graph(db_dir)
 
-            load2Neo4jDB.json2neo4j(fp.name, graph)
+            GraphToNeo4j.json2neo4j(fp.name, graph)
     else:
         with sys.stdout as fp:
             json.dump(OrderedDict([('vertices', map(dict, nodes.values())), ('edges', edges)]), fp, indent=4)
