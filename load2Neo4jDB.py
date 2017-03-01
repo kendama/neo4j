@@ -60,7 +60,7 @@ edgeQueries = [generatedByEdgeQuery, usedEdgeQuery, executedEdgeQuery]
 
 def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = edgeQueries):
     # Retrieve JSON/CSV file
-    logging.info('Creating temporary JSON/CSV file')
+    logger.info('Creating temporary JSON/CSV file')
     nodes = tempfile.NamedTemporaryFile(prefix='vertices', suffix='.csv')
     edges = tempfile.NamedTemporaryFile(prefix='edges', suffix='.csv')
 
@@ -68,7 +68,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
     # uid = dir_info.st_uid
     # gid = dir_info.st_gid
 
-    logging.info('Converting JSON to CSV')
+    logger.info('Converting JSON to CSV')
     with open(jsonfilename) as json_file:
         JSON = json.load(json_file)
 
@@ -82,7 +82,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
 
     df2 = pd.DataFrame(JSON['edges'])
     if df2.empty:
-        print 'No edges/activities/provenance in graph'
+        logger.info('No edges/activities/provenance in graph')
 
         # Change file permission and ownership for Neo4j
         # os.chown(nodes.name, uid, gid)
@@ -94,19 +94,15 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
             nodeQuery = nodeQuery % nodes.name
 
         #Send Cypher query
-        logging.info('Loading data from CSV file(s) to Neo4j')
+        logger.info('Loading data from CSV file(s) to Neo4j')
         graph.run(nodeQuery[0])
 
         graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
 
-
-
-        logging.info('Done.')
-
         # Clean up directory and remove created files
         # Comment out if you would like to keep csv files
-        print('Removing csv files from local directory')
+        logger.debug('Removing csv files from local directory')
         nodes.close()
 
     else:
@@ -118,13 +114,13 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         # os.chown(edges.name, uid, gid)
 
         # Add uniqueness constraints and indexing
-        logging.info('Establishing uniqueness constraints and indexing for Neo4j')
+        logger.info('Establishing uniqueness constraints and indexing for Neo4j')
         graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
         graph.run("CREATE INDEX ON :Entity(entity)")
 
         # Build query
-        logging.info('Loading data from CSV file(s) to Neo4j')
+        logger.info('Loading data from CSV file(s) to Neo4j')
         for nodeQuery in node_queries:
             nodeQuery = nodeQuery % nodes.name
             graph.run(nodeQuery)
@@ -133,7 +129,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
             graph.run(edgeQuery)
 
         # Send Cypher query
-        logging.info('Loading data from CSV file(s) to Neo4j')
+        logger.info('Loading data from CSV file(s) to Neo4j')
         # for nodeQuery in node_queries:
         #     graph.run(nodeQuery)
         # for edgeQuery in edge_queries:
@@ -141,15 +137,16 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
         graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
         graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
-        logging.info('Done.')
 
         # Clean up directory and remove created files
         # Comment out if you would like to keep csv files
-        print('Removing csv files from local directory')
+        logger.debug('Removing csv files from local directory')
         nodes.close()
         edges.close()
 
 if __name__ == '__main__':
+
+    logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser(description=
                 'Please input the name of json outfile to load graph data to Neo4j database')
@@ -162,7 +159,7 @@ if __name__ == '__main__':
         sys.exit(1)
     else:
         # Connect to graph
-        print 'Connecting to Neo4j and authenticating user credentials'
+        logger.info('Connecting to Neo4j and authenticating user credentials')
         with open('credentials.json') as json_file:
             db_info=json.load(json_file)
         authenticate(db_info['machine'], db_info['username'], db_info['password'])
