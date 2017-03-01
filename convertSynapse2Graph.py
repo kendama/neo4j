@@ -151,32 +151,37 @@ def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
     return entityDict
 
 def safeGetActivity(entity):
-    '''retrieve activity/provenance associated with a particular entity'''
+    """Retrieve provenance associated with a particular entity.
+
+    Adds the Synapse ID of the entity getting activity for as `entityId`
+    """
+
     k, ent = entity
+
     try:
         logger.debug('Getting Provenance for: %s' % (k, ))
         prov = syn.getProvenance(ent['synId'], version=ent['versionNumber'])
-        return (k, prov)
+        prov['entityId'] = k
+        return prov
+    # This should be handled in syn.getProvenance
     except synapseclient.exceptions.SynapseHTTPError:
-        return (k, None)
+        return None
+
+def cleanUpActivity(activity):
+    logger.debug('Cleaning up activity: %s' % activity)
+    activity['_id'] = activity.pop('id')
+    activity['concreteType'] = 'org.sagebionetworks.repo.model.provenance.Activity'
+
+    return activity
 
 def cleanUpActivities(activities):
     """remove all activity-less entities
 
     """
 
-    logger.debug('Removing all activity-less entities')
-    returnDict = dict()
+    logger.debug('Removing entities without activities.')
 
-    for k,activity in activities:
-        logger.debug('Cleaning up activity: %s' % k)
-
-        if activity is None:
-            continue
-
-        activity['_id'] = activity['id']
-        activity['synId'] = activity.pop('id')
-        returnDict[k] = activity
+    returnDict = {v['entityId']: cleanUpActivity(v) for v in activities if v}
 
     return returnDict
 
@@ -199,19 +204,19 @@ def buildEdgesfromActivities(nodes, activities):
         activity = activities[k]
 
         #Determine if we have already seen this activity
-        if activity['synId'] not in new_nodes:
-            logger.debug("%s not in new_nodes" % (activity['synId'], ))
-            new_nodes[activity['synId']]  = activity
+        if activity['_id'] not in new_nodes:
+            logger.debug("%s not in new_nodes" % (activity['_id'], ))
+            new_nodes[activity['_id']]  = activity
 
             #Add input relationships
             for used in activity['used']:
                 edges = addNodesandEdges(used, nodes, activity, edges)
         else:
-            activity = new_nodes[activity['synId']]
+            activity = new_nodes[activity['_id']]
 
         #Add generated relationship (i.e. out edge)
         edges.append({'_id': IDGENERATOR.next(),
-                      'synId': activity['synId'],
+                      # 'synId': activity['synId'],
                       '_inV': entity['_id'],
                       '_outV': activity['_id'],
                       '_label':'generatedBy',
@@ -253,7 +258,7 @@ def addNodesandEdges(used, nodes, activity, edges):
                               'concreteType': used['concreteType']}
     #Create the incoming edges
     edges.append({'_id': IDGENERATOR.next(),
-                  'synId': activity['synId'],
+                  # 'synId': activity['synId'],
                   '_inV': activity['_id'],
                   '_outV': nodes[targetId]['_id'],
                   '_label': 'executed' if used.get('wasExecuted', False) else 'used',
