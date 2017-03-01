@@ -28,7 +28,7 @@ if __name__ == '__main__':
     graph = Graph(db_dir)
 
     try:
-        load2Neo4jDB.json2neo4j(str(json_file), graph)
+        load2Neo4jDB.json2neo4j(args.inputfile, graph)
     except:
         logging.error('Error involving loading data from json file to Neo4j database')
         raise
