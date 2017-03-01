@@ -56,9 +56,7 @@ def idGenerator(start=0):
         yield i
         i +=1;
 
-newIdGenerator = idGenerator()#29602)
-counter2 = idGenerator()
-
+newIdGenerator = idGenerator()
 
 class MyEnt(UserDict.IterableUserDict):
     """A dictionary representation of a Synapse entity.
@@ -77,7 +75,7 @@ class MyEnt(UserDict.IterableUserDict):
                 self.data[key] = self.data[key][0]
 
         self.data.pop('annotations')
-        
+
         self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
         self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
 
@@ -95,7 +93,7 @@ class MyEnt(UserDict.IterableUserDict):
         return syn._getACL(synId)['id']
 
 def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
-    """Convert a Synapse versioned Entity from REST call to a dictionary.
+    """Convert a Synapse versioned Entity from REST call to a MyEnt dictionary.
 
     """
 
@@ -128,6 +126,10 @@ def getVersions(syn, synapseId, projectId, toIgnore):
     map(lambda x: entityDict.update(processEnt(syn, x, projectId, toIgnore)), fileVersions)
     return entityDict
 
+def synFileIdWalker(walker):
+    for x in walker:
+        yield x['file.id']
+
 def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
     '''Get and format all entities with from a Project.
 
@@ -137,12 +139,12 @@ def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
 
     logging.info('Getting and formatting all entities from %s' % projectId)
 
-    walker = synapseutils.walk(syn, projectId)
-    # walker = syn.chunkedQuery('select id from file where projectId=="%s"' % projectId)
+    q = syn.chunkedQuery('select id from file where projectId=="%s"' % projectId)
+    walker = synFileIdWalker(q)
+
     entityDict = dict()
 
-    for (dirpath, dirnames, filenames) in walker:
-        p.map(lambda (x, y): entityDict.update(getVersions(syn, y, projectId, toIgnore)), filenames)
+    p.map(lambda x: entityDict.update(getVersions(syn, x, projectId, toIgnore)), walker)
 
     return entityDict
 
@@ -156,7 +158,7 @@ def safeGetActivity(entity):
     except synapseclient.exceptions.SynapseHTTPError:
         return (k, None)
 
-def cleanUpActivities(activities, newId = newIdGenerator):
+def cleanUpActivities(activities):
     '''remove all activity-less entities'''
     logging.info('Removing all activity-less entities')
     returnDict = dict()
@@ -171,8 +173,11 @@ def cleanUpActivities(activities, newId = newIdGenerator):
         returnDict[k] = activity
     return returnDict
 
-def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
-    '''construct directed edges based on provenance'''
+def buildEdgesfromActivities(nodes, activities):
+    '''Construct directed edges based on provenance.
+
+    '''
+    
     logging.info('Constructing directed edges based on provenance')
     new_nodes = dict()
     edges = list()
@@ -190,7 +195,7 @@ def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
-        edges.append({'_id': newId.next(),
+        edges.append({'_id': newIdGenerator.next(),
                       'synId': activity['synId'],
                       '_inV': entity['_id'],
                       '_outV': activity['_id'],
@@ -202,7 +207,7 @@ def buildEdgesfromActivities(nodes, activities, newId = newIdGenerator):
     nodes.update(new_nodes)
     return edges
 
-def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
+def addNodesandEdges(used, nodes, activity, edges):
     #add missing vertices to nodes with edges
     if used['concreteType']=='org.sagebionetworks.repo.model.provenance.UsedEntity':
         targetId = '%s.%s' %(used['reference']['targetId'],
@@ -225,13 +230,13 @@ def addNodesandEdges(used, nodes, activity, edges, newId = newIdGenerator):
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
-            nodes[targetId]= {'_id': newId.next(),
+            nodes[targetId]= {'_id': newIdGenerator.next(),
                               '_type': 'vertex',
                               'name': used.get('name'),
                               'url': used['url'],
                               'concreteType': used['concreteType']}
     #Create the incoming edges
-    edges.append({'_id': newId.next(),
+    edges.append({'_id': newIdGenerator.next(),
                   'synId': activity['synId'],
                   '_inV': activity['_id'],
                   '_type': 'edge',
