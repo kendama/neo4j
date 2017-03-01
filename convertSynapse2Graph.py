@@ -56,7 +56,7 @@ def idGenerator(start=0):
         yield i
         i +=1;
 
-newIdGenerator = idGenerator()
+IDGENERATOR = idGenerator()
 
 class MyEnt(UserDict.IterableUserDict):
     """A dictionary representation of a Synapse entity.
@@ -177,7 +177,7 @@ def buildEdgesfromActivities(nodes, activities):
     '''Construct directed edges based on provenance.
 
     '''
-    
+
     logging.info('Constructing directed edges based on provenance')
     new_nodes = dict()
     edges = list()
@@ -195,7 +195,7 @@ def buildEdgesfromActivities(nodes, activities):
         else:
             activity = new_nodes[activity['synId']]
         #Add generated relationship (i.e. out edge)
-        edges.append({'_id': newIdGenerator.next(),
+        edges.append({'_id': IDGENERATOR.next(),
                       'synId': activity['synId'],
                       '_inV': entity['_id'],
                       '_outV': activity['_id'],
@@ -230,13 +230,13 @@ def addNodesandEdges(used, nodes, activity, edges):
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
         targetId = used['url']
         if not targetId in nodes:
-            nodes[targetId]= {'_id': newIdGenerator.next(),
+            nodes[targetId]= {'_id': IDGENERATOR.next(),
                               '_type': 'vertex',
                               'name': used.get('name'),
                               'url': used['url'],
                               'concreteType': used['concreteType']}
     #Create the incoming edges
-    edges.append({'_id': newIdGenerator.next(),
+    edges.append({'_id': IDGENERATOR.next(),
                   'synId': activity['synId'],
                   '_inV': activity['_id'],
                   '_type': 'edge',
