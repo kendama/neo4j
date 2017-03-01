@@ -50,8 +50,8 @@ if __name__ == '__main__':
     activities = convertSynapse2Graph.cleanUpActivities(activities)
 
     if len(activities) > 0:
-        print '%i activities found i.e. %f%% entities have provenance' %(len(activities),
-                                                                            float(len(nodes))/len(activities))
+        logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
+                                                                            float(len(nodes))/len(activities)))
     else:
         print 'This project lacks accessible information on provenance'
 
