@@ -235,7 +235,7 @@ def addNodesandEdges(used, nodes, activity, edges):
                 ent = syn.get(used['reference']['targetId'],
                               version=used['reference'].get('targetVersionNumber'),
                               downloadFile=False)
-                ent = MyEnt(syn, ent)
+                ent = MyEntity(syn, ent)
             except Exception as e:
                 logger.error("Could not get %s (%s)\n" % (targetId, e))
                 return edges
