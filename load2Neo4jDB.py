@@ -68,7 +68,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
     # uid = dir_info.st_uid
     # gid = dir_info.st_gid
 
-    logger.info('Converting JSON to CSV')
+    logger.info('Converting %s to CSV' % jsonfilename)
     with open(jsonfilename) as json_file:
         JSON = json.load(json_file)
 
