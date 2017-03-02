@@ -18,49 +18,10 @@ syn = synapseclient.login(silent=True)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-NODETYPES = {0:'dataset',1: 'layer',2: 'project',3: 'preview',4: 'folder',
-             5: 'analysis',6: 'step', 7: 'code',8: 'link',9: 'phenotypedata',
-             10:'genotypedata',11:'expressiondata',12:'robject',
-             13:'summary',14:'genomicdata',15:'page',16:'file',17:'table',
-             18:'community'}
-
 IGNOREME_NODETYPES = ['org.sagebionetworks.repo.model.Project',
                       'org.sagebionetworks.repo.model.Preview']
 
 SKIP_LIST = ['syn582072', 'syn3218329', 'syn2044761', 'syn2351328', 'syn1450028']
-
-
-class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
-    """
-    def __init__(self, it):
-        self.it = it
-        self.lock = threading.Lock()
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        with self.lock:
-            return self.it.next()
-
-def threadsafe_generator(f):
-    """A decorator that takes a generator function and makes it thread-safe.
-    """
-    def g(*a, **kw):
-        return threadsafe_iter(f(*a, **kw))
-    return g
-
-@threadsafe_generator
-def idGenerator(start=0):
-    '''generates relevant id numbers starting from 0 as default'''
-    i = start
-    while True:
-        yield i
-        i +=1;
-
-IDGENERATOR = idGenerator()
 
 class MyEntity(UserDict.IterableUserDict):
     """A dictionary representation of a Synapse entity.
@@ -170,7 +131,7 @@ def cleanUpActivities(activities):
     """
 
     returnDict = {}
-    
+
     for activity in activities:
         logger.debug('Cleaning up activity: %s' % activity)
 
