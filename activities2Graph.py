@@ -1,4 +1,4 @@
-import multiprocessing.dummy as mp
+import multiprocessing
 import threading
 import argparse
 import logging
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     syn = synapseclient.login(silent=True)
 
-    p = mp.Pool(args.n)
+    pool = multiprocessing.dummy.Pool(args.n)
 
     nodes = dict()
 
@@ -50,13 +50,13 @@ if __name__ == '__main__':
             continue
         else:
             logger.info('Getting entities from %s' %proj)
-            nodes.update(synapsegraph.processEntities(projectId = proj))
+            nodes.update(synapsegraph.processEntities(projectId = proj, pool=pool))
 
     logger.info('Fetched %i entities' % len(nodes))
 
-    activities = p.map(synapsegraph.safeGetActivity, nodes.items())
+    activities = pool.map(synapsegraph.safeGetActivity, nodes.items())
     activities = synapsegraph.cleanUpActivities(activities)
-
+    
     if len(activities) > 0:
         logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
                                                                             float(len(nodes))/len(activities)))
