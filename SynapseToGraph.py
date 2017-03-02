@@ -6,6 +6,7 @@ import sys
 from collections import OrderedDict
 import multiprocessing
 import UserDict
+import uuid
 
 import synapseclient
 import synapseutils
@@ -163,21 +164,20 @@ def safeGetActivity(entity):
     except synapseclient.exceptions.SynapseHTTPError:
         return None
 
-def cleanUpActivity(activity):
-    logger.debug('Cleaning up activity: %s' % activity)
-    activity['_id'] = activity.pop('id')
-    activity['concreteType'] = 'org.sagebionetworks.repo.model.provenance.Activity'
-
-    return activity
-
 def cleanUpActivities(activities):
     """remove all activity-less entities
 
     """
 
-    logger.debug('Removing entities without activities.')
+    returnDict = {}
+    
+    for activity in activities:
+        logger.debug('Cleaning up activity: %s' % activity)
 
-    returnDict = {v['entityId']: cleanUpActivity(v) for v in activities if v}
+        if activity:
+            activity['_id'] = activity.pop('id')
+            activity['concreteType'] = 'org.sagebionetworks.repo.model.provenance.Activity'
+            returnDict[activity['entityId']] = activity
 
     return returnDict
 
@@ -240,9 +240,10 @@ def addNodesandEdges(used, nodes, activity, edges):
             nodes[targetId] = ent
 
     elif used['concreteType'] =='org.sagebionetworks.repo.model.provenance.UsedURL':
-        targetId = used['url']
+        targetId = str(uuid.uuid3(uuid.NAMESPACE_URL, str(used['url'])))
+
         if not targetId in nodes:
-            nodes[targetId]= {'_id': IDGENERATOR.next(),
+            nodes[targetId]= {'_id': targetId,
                               'name': used.get('name'),
                               'url': used['url'],
                               'concreteType': used['concreteType']}
