@@ -99,69 +99,33 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         df1 = df1.drop('used', 1)
     if 'description' in df1.columns:
         df1 = df1.drop('description', 1)
-    df1.to_csv(nodes.name, index=False)
+    
     # index=False removes first column with null header
+    df1.to_csv(nodes.name, index=False)
 
     df2 = pd.DataFrame(JSON['edges'])
-    if df2.empty:
-        logger.info('No edges/activities/provenance in graph')
+    df2.to_csv(edges.name, index=False)
 
-        # Change file permission and ownership for Neo4j
-        # os.chown(nodes.name, uid, gid)
+    # Add uniqueness constraints and indexing
+    logger.info('Establishing uniqueness constraints and indexing for Neo4j')
+    graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
+    graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
+    graph.run("CREATE INDEX ON :Entity(_id)")
+    graph.run("CREATE INDEX ON :Entity(synId)")
 
-        # Add uniqueness constraints and indexing
-        graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-        graph.run("CREATE INDEX ON :Entity(entity)")
-        for nodeQuery in node_queries:
-            nodeQuery = nodeQuery % nodes.name
+    # Build query
+    logger.info('Loading data from CSV file(s) to Neo4j')
 
-        #Send Cypher query
-        logger.info('Loading data from CSV file(s) to Neo4j')
-        graph.run(nodeQuery[0])
+    for nodeQuery in node_queries:
+        nodeQuery = nodeQuery % nodes.name
+        graph.run(nodeQuery)
 
-        graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-        graph.run("MATCH (n) WHERE n:Entity REMOVE n.id").evaluate()
+    for edgeQuery in edge_queries:
+        edgeQuery = edgeQuery % edges.name
+        graph.run(edgeQuery)
 
-        # Clean up directory and remove created files
-        # Comment out if you would like to keep csv files
-        logger.debug('Removing csv files from local directory')
-        nodes.close()
-
-    else:
-        print df2
-        df2.to_csv(edges.name, index=False)
-
-        # Change file permission and ownership for Neo4j
-        # os.chown(nodes.name, uid, gid)
-        # os.chown(edges.name, uid, gid)
-
-        # Add uniqueness constraints and indexing
-        logger.info('Establishing uniqueness constraints and indexing for Neo4j')
-        graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-        graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
-        graph.run("CREATE INDEX ON :Entity(entity)")
-
-        # Build query
-        logger.info('Loading data from CSV file(s) to Neo4j')
-        for nodeQuery in node_queries:
-            nodeQuery = nodeQuery % nodes.name
-            graph.run(nodeQuery)
-        for edgeQuery in edge_queries:
-            edgeQuery = edgeQuery % edges.name
-            graph.run(edgeQuery)
-
-        # Send Cypher query
-        logger.info('Loading data from CSV file(s) to Neo4j')
-        # for nodeQuery in node_queries:
-        #     graph.run(nodeQuery)
-        # for edgeQuery in edge_queries:
-        #     graph.run(edgeQuery)
-        graph.run("DROP CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-        graph.run("DROP CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
-        graph.run("MATCH (n) WHERE n:Activity OR n:Entity REMOVE n.id").evaluate()
-
-        # Clean up directory and remove created files
-        # Comment out if you would like to keep csv files
-        logger.debug('Removing csv files from local directory')
-        nodes.close()
-        edges.close()
+    # Clean up directory and remove created files
+    # Comment out if you would like to keep csv files
+    logger.debug('Removing csv files from local directory')
+    nodes.close()
+    edges.close()
