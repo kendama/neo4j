@@ -16,21 +16,21 @@ logger = logging.getLogger(__name__)
 
 # Preconstructed queries
 entityNodeQuery = """
-    USING PERIODIC COMMIT 1000
+    USING PERIODIC COMMIT 10000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE NOT dvs.concreteType = "org.sagebionetworks.repo.model.provenance.Activity"
        MERGE (entity:Entity {id:dvs._id}) ON CREATE
        SET entity = dvs
 """
 activityNodeQuery = """
-    USING PERIODIC COMMIT 1000
+    USING PERIODIC COMMIT 10000
     LOAD CSV WITH HEADERS FROM "file://%s" AS dvs
     WITH dvs WHERE dvs.concreteType = "org.sagebionetworks.repo.model.provenance.Activity"
        MERGE (activity:Activity {id:dvs._id}) ON CREATE
        SET activity = dvs
 """
 generatedByEdgeQuery = """
-    USING PERIODIC COMMIT 1000
+    USING PERIODIC COMMIT 10000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
     WITH erow WHERE erow._label = "generatedBy"
     MATCH (in_node:Entity { _id:erow._inV })
@@ -38,7 +38,7 @@ generatedByEdgeQuery = """
     MERGE (out_node)-[:GENERATED_BY { action:erow._label, id:erow._id }]->(in_node)
 """
 usedEdgeQuery = """
-    USING PERIODIC COMMIT 1000
+    USING PERIODIC COMMIT 10000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
     WITH erow WHERE erow._label = "used"
     MATCH (in_node:Activity { _id:erow._inV })
@@ -46,7 +46,7 @@ usedEdgeQuery = """
     MERGE (out_node)-[:USED { action:erow._label, id:erow._id, wasExecuted:erow.wasExecuted }]->(in_node)
 """
 executedEdgeQuery = """
-    USING PERIODIC COMMIT 1000
+    USING PERIODIC COMMIT 10000
     LOAD CSV WITH HEADERS FROM "file://%s" AS erow
     WITH erow WHERE erow._label = "executed"
     MATCH (in_node:Activity { _id:erow._inV })
@@ -111,7 +111,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
     graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity._id IS UNIQUE")
     graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity._id IS UNIQUE")
     graph.run("CREATE INDEX ON :Entity(projectId)")
-    
+
     # Build query
     logger.info('Loading data from CSV file(s) to Neo4j')
 
