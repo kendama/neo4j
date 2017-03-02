@@ -42,19 +42,17 @@ class MyEntity(UserDict.IterableUserDict):
         self.data.pop('annotations')
 
         # If not supplied, get the project and benefactor of the entity
-        self.data['projectId'] = projectId or self._getProjectId(self._syn, self.data['id'])
-        self.data['benefactorId'] = benefactorId or self._getBenefactorId(self._syn, self.data['id'])
+        self.data['projectId'] = projectId or self._getProjectId(self.data['id'])
+        self.data['benefactorId'] = benefactorId or self._getBenefactorId(self.data['id'])
         self.data['_id'] = "%s.%s" % (self.data['id'], self.data['versionNumber'])
         self.data['synId'] = self.data.pop('id')
 
-    @staticmethod
-    def _getProjectId(syn, synId):
+    def _getProjectId(self, synId):
         return filter(lambda x: x['type'] == 'org.sagebionetworks.repo.model.Project',
-                      syn.restGET("/entity/%s/path" % synId)['path'])[0]['id']
+                      self._syn.restGET("/entity/%s/path" % synId)['path'])[0]['id']
 
-    @staticmethod
-    def _getBenefactorId(syn, synId):
-        return syn._getACL(synId)['id']
+    def _getBenefactorId(self, synId):
+        return self._syn._getACL(synId)['id']
 
 def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
     """Convert a Synapse versioned Entity from REST call to a MyEntity dictionary.
