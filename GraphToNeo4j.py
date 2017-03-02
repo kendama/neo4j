@@ -99,7 +99,7 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
         df1 = df1.drop('used', 1)
     if 'description' in df1.columns:
         df1 = df1.drop('description', 1)
-    
+
     # index=False removes first column with null header
     df1.to_csv(nodes.name, index=False)
 
@@ -108,9 +108,10 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
 
     # Add uniqueness constraints and indexing
     logger.info('Establishing uniqueness constraints and indexing for Neo4j')
-    graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity.id IS UNIQUE")
-    graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity.id IS UNIQUE")
+    graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity._id IS UNIQUE")
+    graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity._id IS UNIQUE")
     graph.run("CREATE INDEX ON :Entity(_id)")
+    graph.run("CREATE INDEX ON :Activity(_id)")
     graph.run("CREATE INDEX ON :Entity(synId)")
 
     # Build query
