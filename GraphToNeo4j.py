@@ -110,10 +110,8 @@ def json2neo4j(jsonfilename, graph, node_queries = nodeQueries, edge_queries = e
     logger.info('Establishing uniqueness constraints and indexing for Neo4j')
     graph.run("CREATE CONSTRAINT ON (entity:Entity) ASSERT entity._id IS UNIQUE")
     graph.run("CREATE CONSTRAINT ON (activity:Activity) ASSERT activity._id IS UNIQUE")
-    graph.run("CREATE INDEX ON :Entity(_id)")
-    graph.run("CREATE INDEX ON :Activity(_id)")
-    graph.run("CREATE INDEX ON :Entity(synId)")
-
+    graph.run("CREATE INDEX ON :Entity(projectId)")
+    
     # Build query
     logger.info('Loading data from CSV file(s) to Neo4j')
 
