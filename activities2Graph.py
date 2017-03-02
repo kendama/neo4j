@@ -11,7 +11,7 @@ import synapseclient
 from py2neo import Graph, authenticate
 
 import GraphToNeo4j
-import SynapseToGraph
+import synapsegraph
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -43,19 +43,19 @@ if __name__ == '__main__':
     if not args.id:
         logger.warn("No Project ids given, getting all projects from Synapse.")
         q = syn.chunkedQuery('select id from project')
-        args.id = SynapseToGraph.synFileIdWalker(q)
+        args.id = synapsegraph.synFileIdWalker(q)
     for proj in args.id:
-        if proj in SynapseToGraph.SKIP_LIST:
+        if proj in synapsegraph.SKIP_LIST:
             logger.info("Skipping %s" % proj)
             continue
         else:
             logger.info('Getting entities from %s' %proj)
-            nodes.update(SynapseToGraph.processEntities(projectId = proj))
+            nodes.update(synapsegraph.processEntities(projectId = proj))
 
     logger.info('Fetched %i entities' % len(nodes))
 
-    activities = p.map(SynapseToGraph.safeGetActivity, nodes.items())
-    activities = SynapseToGraph.cleanUpActivities(activities)
+    activities = p.map(synapsegraph.safeGetActivity, nodes.items())
+    activities = synapsegraph.cleanUpActivities(activities)
 
     if len(activities) > 0:
         logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     else:
         print 'This project lacks accessible information on provenance'
 
-    edges = SynapseToGraph.buildEdgesfromActivities(nodes, activities)
+    edges = synapsegraph.buildEdgesfromActivities(nodes, activities)
     logger.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
 
     if args.load:
