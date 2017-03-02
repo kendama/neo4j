@@ -61,8 +61,8 @@ def processEnt(syn, fileVersion, projectId=None, benefactorId=None, toIgnore = I
 
     logger.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
     ent = syn.get(fileVersion['id'],
-                             version=fileVersion['versionNumber'],
-                             downloadFile=False)
+                  version=fileVersion['versionNumber'],
+                  downloadFile=False)
 
     #Remove containers by ignoring layers, projects, and previews
     if ent['entityType'] in toIgnore:
@@ -84,23 +84,21 @@ def getVersions(syn, synapseId, *args, **kwargs): #projectId=None, benefactorId=
     map(lambda x: entityDict.update(processEnt(syn, x, *args, **kwargs)), fileVersions)
     return entityDict
 
-def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
+def processEntities(projectId, pool=multiprocessing.dummy.Pool(1), toIgnore = IGNOREME_NODETYPES):
     '''Get and format all entities with from a Project.
 
     '''
-
-    p = multiprocessing.dummy.Pool(8)
 
     logger.info('Getting and formatting all entities from %s' % projectId)
 
     q = syn.chunkedQuery('select id,benefactorId from file where projectId=="%s"' % projectId)
 
-    entityDict = dict()
+    entityDicts = pool.map(lambda x: getVersions(syn, synapseId=x['file.id'],
+                                              projectId=projectId,
+                                              benefactorId=x['file.benefactorId'],
+                                              toIgnore=toIgnore), q)
 
-    p.map(lambda x: entityDict.update(getVersions(syn, synapseId=x['file.id'],
-                                                  projectId=projectId,
-                                                  benefactorId=x['file.benefactorId'],
-                                                  toIgnore=toIgnore)), q)
+    entityDict = reduce(lambda a, b: dict(a, **b), entityDicts)
 
     return entityDict
 
