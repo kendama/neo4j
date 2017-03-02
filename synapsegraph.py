@@ -54,7 +54,7 @@ class MyEntity(UserDict.IterableUserDict):
     def _getBenefactorId(self, synId):
         return self._syn._getACL(synId)['id']
 
-def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
+def processEnt(syn, fileVersion, projectId=None, benefactorId=None, toIgnore = IGNOREME_NODETYPES):
     """Convert a Synapse versioned Entity from REST call to a MyEntity dictionary.
 
     """
@@ -69,24 +69,20 @@ def processEnt(syn, fileVersion, projectId, toIgnore = IGNOREME_NODETYPES):
         logger.info("Bad entity type (%s)" % (ent['entityType'], ))
         return {}
 
-    ent = MyEntity(syn, ent, projectId)
+    ent = MyEntity(syn, ent, projectId=projectId, benefactorId=benefactorId)
     k = '%s.%s' % (fileVersion['id'], fileVersion['versionNumber'])
 
     return {k: ent}
 
-def getVersions(syn, synapseId, projectId, toIgnore):
+def getVersions(syn, synapseId, *args, **kwargs): #projectId=None, benefactorId=None, toIgnore=IGNOREME_NODETYPES):
     """Convert versions rest call to entity dictionary.
 
     """
 
     entityDict = {}
     fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
-    map(lambda x: entityDict.update(processEnt(syn, x, projectId, toIgnore)), fileVersions)
+    map(lambda x: entityDict.update(processEnt(syn, x, *args, **kwargs)), fileVersions)
     return entityDict
-
-def synFileIdWalker(walker):
-    for x in walker:
-        yield x['file.id']
 
 def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
     '''Get and format all entities with from a Project.
@@ -97,12 +93,14 @@ def processEntities(projectId, toIgnore = IGNOREME_NODETYPES):
 
     logger.info('Getting and formatting all entities from %s' % projectId)
 
-    q = syn.chunkedQuery('select id from file where projectId=="%s"' % projectId)
-    walker = synFileIdWalker(q)
+    q = syn.chunkedQuery('select id,benefactorId from file where projectId=="%s"' % projectId)
 
     entityDict = dict()
 
-    p.map(lambda x: entityDict.update(getVersions(syn, x, projectId, toIgnore)), walker)
+    p.map(lambda x: entityDict.update(getVersions(syn, synapseId=x['file.id'],
+                                                  projectId=projectId,
+                                                  benefactorId=x['file.benefactorId'],
+                                                  toIgnore=toIgnore)), q)
 
     return entityDict
 
