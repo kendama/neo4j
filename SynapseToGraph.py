@@ -211,15 +211,9 @@ def buildEdgesfromActivities(nodes, activities):
             activity = new_nodes[activity['_id']]
 
         #Add generated relationship (i.e. out edge)
-        edges.append({'_id': IDGENERATOR.next(),
-                      # 'synId': activity['synId'],
-                      '_inV': entity['_id'],
+        edges.append({'_inV': entity['_id'],
                       '_outV': activity['_id'],
-                      '_label':'generatedBy',
-                      'createdBy': activity['createdBy'],
-                      'createdOn': activity['createdOn'],
-                      'modifiedBy':activity['modifiedBy'],
-                      'modifiedOn':activity['modifiedOn']})
+                      '_label':'generatedBy'})
 
     nodes.update(new_nodes)
 
@@ -253,15 +247,8 @@ def addNodesandEdges(used, nodes, activity, edges):
                               'url': used['url'],
                               'concreteType': used['concreteType']}
     #Create the incoming edges
-    edges.append({'_id': IDGENERATOR.next(),
-                  # 'synId': activity['synId'],
-                  '_inV': activity['_id'],
+    edges.append({'_inV': activity['_id'],
                   '_outV': nodes[targetId]['_id'],
-                  '_label': 'executed' if used.get('wasExecuted', False) else 'used',
-                  'wasExecuted': used.get('wasExecuted', False),
-                  'createdBy': activity['createdBy'],
-                  'createdOn': activity['createdOn'],
-                  'modifiedBy':activity['modifiedBy'],
-                  'modifiedOn':activity['modifiedOn']})
+                  '_label': 'executed' if used.get('wasExecuted', False) else 'used'})
 
     return edges
