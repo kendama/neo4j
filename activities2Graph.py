@@ -13,7 +13,7 @@ from py2neo import Graph, authenticate
 import GraphToNeo4j
 import synapsegraph
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('id', metavar='synId', nargs='*', help='Input the synapse ID or list of synapse IDs')
     parser.add_argument('-n', type=int, help='Specify the pool size for the multiprocessing module', default=2)
     parser.add_argument('-l', '--load', action='store_true', default=False, help='Load data from json file to Neo4j database')
+    parser.add_argument('--debug', action='store_true', default=False, help='Turn on debugging output.')
     args = parser.parse_args()
 
     syn = synapseclient.login(silent=True)
@@ -34,6 +35,14 @@ if __name__ == '__main__':
     pool = multiprocessing.dummy.Pool(args.n)
 
     nodes = dict()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        synapsegraph.logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+        synapsegraph.logger.setLevel(logging.INFO)
+
 
     if args.load:
         with open(os.path.join(os.path.expanduser("~"), "credentials.json")) as creds:
