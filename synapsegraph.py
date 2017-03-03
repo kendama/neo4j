@@ -59,7 +59,7 @@ def processEnt(syn, fileVersion, projectId=None, benefactorId=None, toIgnore = I
 
     """
 
-    logger.info('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
+    logger.debug('Getting entity (%r.%r)' % (fileVersion['id'], fileVersion['versionNumber']))
     ent = syn.get(fileVersion['id'],
                   version=fileVersion['versionNumber'],
                   downloadFile=False)
@@ -94,9 +94,9 @@ def processEntities(projectId, pool=multiprocessing.dummy.Pool(1), toIgnore = IG
     q = syn.chunkedQuery('select id,benefactorId from file where projectId=="%s"' % projectId)
 
     entityDicts = pool.map(lambda x: getVersions(syn, synapseId=x['file.id'],
-                                              projectId=projectId,
-                                              benefactorId=x['file.benefactorId'],
-                                              toIgnore=toIgnore), q)
+                                                 projectId=projectId,
+                                                 benefactorId=x['file.benefactorId'],
+                                                 toIgnore=toIgnore), q)
 
     entityDict = reduce(lambda a, b: dict(a, **b), entityDicts)
 
@@ -127,8 +127,6 @@ def cleanUpActivities(activities):
     returnDict = {}
 
     for activity in activities:
-        logger.debug('Cleaning up activity: %s' % activity)
-
         if activity:
             activity['_id'] = activity.pop('id')
             activity['concreteType'] = 'org.sagebionetworks.repo.model.provenance.Activity'
