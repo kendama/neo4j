@@ -85,7 +85,7 @@ def getVersions(syn, synapseId, versionNumber=None, *args, **kwargs): #projectId
         fileVersions = [dict(id=synapseId, versionNumber=versionNumber)]
     else:
         fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
-    
+
     map(lambda x: entityDict.update(processEnt(syn, x, *args, **kwargs)), fileVersions)
 
     return entityDict
@@ -166,7 +166,12 @@ def buildEdgesfromActivities(nodes, activities):
 
             #Add input relationships
             for used in activity['used']:
-                edges = addNodesandEdges(used, nodes, activity, edges)
+                try:
+                    edges = addNodesandEdges(used, nodes, activity, edges)
+                except Exception as e:
+                    logger.error("Problem when adding nodes and edges for activity %s, used item %s" % (activity['id'], used))
+                    logger.error(e)
+
         else:
             activity = new_nodes[activity['_id']]
 
