@@ -15,7 +15,7 @@ import GraphToNeo4j
 
 syn = synapseclient.login(silent=True)
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 IGNOREME_NODETYPES = ['org.sagebionetworks.repo.model.Project',
