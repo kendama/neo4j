@@ -49,14 +49,14 @@ if __name__ == '__main__':
             logger.info("Skipping %s" % proj)
             continue
         else:
-            logger.info('Getting entities from %s' %proj)
+            logger.info('Processing Project %s' %proj)
             nodes.update(synapsegraph.processEntities(projectId = proj, pool=pool))
 
     logger.info('Fetched %i entities' % len(nodes))
 
     activities = pool.map(synapsegraph.safeGetActivity, nodes.items())
     activities = synapsegraph.cleanUpActivities(activities)
-    
+
     if len(activities) > 0:
         logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
                                                                             float(len(nodes))/len(activities)))
