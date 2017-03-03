@@ -74,14 +74,20 @@ def processEnt(syn, fileVersion, projectId=None, benefactorId=None, toIgnore = I
 
     return {k: ent}
 
-def getVersions(syn, synapseId, *args, **kwargs): #projectId=None, benefactorId=None, toIgnore=IGNOREME_NODETYPES):
+def getVersions(syn, synapseId, versionNumber=None, *args, **kwargs): #projectId=None, benefactorId=None, toIgnore=IGNOREME_NODETYPES):
     """Convert versions rest call to entity dictionary.
 
     """
 
     entityDict = {}
-    fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
+
+    if versionNumber == 1:
+        fileVersions = [dict(id=synapseId, versionNumber=versionNumber)]
+    else:
+        fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
+    
     map(lambda x: entityDict.update(processEnt(syn, x, *args, **kwargs)), fileVersions)
+
     return entityDict
 
 def processEntities(projectId, pool=multiprocessing.dummy.Pool(1), toIgnore = IGNOREME_NODETYPES):
@@ -91,9 +97,10 @@ def processEntities(projectId, pool=multiprocessing.dummy.Pool(1), toIgnore = IG
 
     logger.info('Getting and formatting all entities from %s' % projectId)
 
-    q = syn.chunkedQuery('select id,benefactorId from file where projectId=="%s"' % projectId)
+    q = syn.chunkedQuery('select id,benefactorId,versionNumber from file where projectId=="%s"' % projectId)
 
     entityDicts = pool.map(lambda x: getVersions(syn, synapseId=x['file.id'],
+                                                 versionNumber=x['file.versionNumber'],
                                                  projectId=projectId,
                                                  benefactorId=x['file.benefactorId'],
                                                  toIgnore=toIgnore), q)
