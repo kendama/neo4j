@@ -169,7 +169,7 @@ def buildEdgesfromActivities(nodes, activities):
                 try:
                     edges = addNodesandEdges(used, nodes, activity, edges)
                 except Exception as e:
-                    logger.error("Problem when adding nodes and edges for activity %s, used item %s" % (activity['id'], used))
+                    logger.error("Problem when adding nodes and edges for activity %s, used item %s" % (activity, used))
                     logger.error(e)
 
         else:
