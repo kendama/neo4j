@@ -4,6 +4,7 @@ import argparse
 import logging
 import json
 import tempfile
+import itertools
 import sys
 from collections import OrderedDict
 
@@ -20,14 +21,17 @@ if __name__ == '__main__':
     import os
 
 
-    parser = argparse.ArgumentParser(description=
-                '''Please input [1] the synapse ID or space-separated list of synapse ID and
-                            [2, default: graph.json] the name of json outfile to graph provenance and
-                            [3, default: # of available cores] the mp pool size''')
-    parser.add_argument('id', metavar='synId', nargs='*', help='Input the synapse ID or list of synapse IDs')
-    parser.add_argument('-n', type=int, help='Specify the pool size for the multiprocessing module', default=2)
-    parser.add_argument('-l', '--load', action='store_true', default=False, help='Load data from json file to Neo4j database')
-    parser.add_argument('--debug', action='store_true', default=False, help='Turn on debugging output.')
+    parser = argparse.ArgumentParser(description='Convert Synapse projects to JSON for import into neo4j graph database.')
+    parser.add_argument('id', metavar='synId', nargs='*',
+                        help='Input the synapse ID or list of synapse IDs. If no IDs given, all available Synapse projects will be used.')
+    parser.add_argument('-n', type=int,
+                        help='Specify the pool size for the multiprocessing module',
+                        default=2)
+    parser.add_argument('-l', '--load', action='store_true',
+                        default=False,
+                        help='Load data from json file to Neo4j database')
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='Turn on debugging output.')
     args = parser.parse_args()
 
     syn = synapseclient.login(silent=True)
@@ -43,7 +47,6 @@ if __name__ == '__main__':
         logger.setLevel(logging.INFO)
         synapsegraph.logger.setLevel(logging.INFO)
 
-
     if args.load:
         with open(os.path.join(os.path.expanduser("~"), "credentials.json")) as creds:
             db_info = json.load(creds)
@@ -52,7 +55,7 @@ if __name__ == '__main__':
     if not args.id:
         logger.warn("No Project ids given, getting all projects from Synapse.")
         q = syn.chunkedQuery('select id from project')
-        args.id = synapsegraph.synFileIdWalker(q)
+        args.id = itertools.imap(lambda x: x['project.id'], q)
     for proj in args.id:
         if proj in synapsegraph.SKIP_LIST:
             logger.info("Skipping %s" % proj)
