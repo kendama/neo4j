@@ -74,7 +74,7 @@ def processEnt(syn, fileVersion, projectId=None, benefactorId=None, toIgnore = I
 
     return {k: ent}
 
-def getVersions(syn, synapseId, versionNumber=None, *args, **kwargs): #projectId=None, benefactorId=None, toIgnore=IGNOREME_NODETYPES):
+def getVersions(syn, synapseId, versionNumber=None, *args, **kwargs):
     """Convert versions rest call to entity dictionary.
 
     """
@@ -86,11 +86,13 @@ def getVersions(syn, synapseId, versionNumber=None, *args, **kwargs): #projectId
     else:
         fileVersions = syn._GET_paginated('/entity/%s/version' % (synapseId, ), offset=1)
 
-    map(lambda x: entityDict.update(processEnt(syn, x, *args, **kwargs)), fileVersions)
+    for x in fileVersions:
+        entityDict.update(processEnt(syn, x, *args, **kwargs))
 
     return entityDict
 
-def processEntities(projectId, pool=multiprocessing.dummy.Pool(1), toIgnore = IGNOREME_NODETYPES):
+def processEntities(projectId, pool=multiprocessing.dummy.Pool(1),
+                    toIgnore = IGNOREME_NODETYPES):
     '''Get and format all entities with from a Project.
 
     '''
@@ -169,8 +171,9 @@ def buildEdgesfromActivities(nodes, activities):
                 try:
                     edges = addNodesandEdges(used, nodes, activity, edges)
                 except Exception as e:
-                    logger.error("Problem when adding nodes and edges for activity %s, used item %s" % (activity['_id'], used))
-                    logger.error(e)
+                    logger.error("%s (activity %s, used item %s)" % (e,
+                                                                     activity['_id'],
+                                                                     used))
 
         else:
             activity = new_nodes[activity['_id']]
@@ -199,7 +202,8 @@ def addNodesandEdges(used, nodes, activity, edges):
                 logger.error("Could not get %s (%s)\n" % (targetId, e))
                 return edges
 
-            logger.debug(dict(used=used['reference']['targetId'], version=used['reference'].get('targetVersionNumber')))
+            logger.debug(dict(used=used['reference']['targetId'],
+                              version=used['reference'].get('targetVersionNumber')))
             # ent['benefactorId'] = syn._getACL(ent['id'])['id']
 
             nodes[targetId] = ent
