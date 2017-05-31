@@ -1,69 +1,71 @@
-import synapseclient
-import load2Neo4jDB as ndb
-import convertSynapse2Graph as cg
-import multiprocessing.dummy as mp
+import multiprocessing
 import threading
 import argparse
 import logging
 import json
+import tempfile
+import itertools
+import sys
 from collections import OrderedDict
-from py2neo import Graph, authenticate
 
-syn = synapseclient.login()
+import synapseclient
+
+import synapsegraph
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    import os
 
-    parser = argparse.ArgumentParser(description=
-                '''Please input [1] the synapse ID or space-separated list of synapse ID and
-                            [2, default: graph.json] the name of json outfile to graph provenance and
-                            [3, default: # of available cores] the mp pool size''')
-    parser.add_argument('id', metavar='synId', nargs='+', help='Input the synapse ID or list of synapse IDs')
-    parser.add_argument('--j', metavar='json', help='Input name of json outfile')
-    parser.add_argument('--p', type=int, help='Specify the pool size for the multiprocessing module')
-    parser.add_argument('-l', action='store_true', default=False, help='Load data from json file to Neo4j database')
+    parser = argparse.ArgumentParser(description='Convert Synapse projects to JSON for import into neo4j graph database.')
+    parser.add_argument('id', metavar='synId', nargs='*',
+                        help='Input the synapse ID or list of synapse IDs. If no IDs given, all available Synapse projects will be used.')
+    parser.add_argument('-n', type=int,
+                        help='Specify the pool size for the multiprocessing module',
+                        default=2)
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='Turn on debugging output.')
     args = parser.parse_args()
 
-    proj_inputs = args.id
-    if args.j:
-        json_file = args.j
-    else:
-        json_file = 'graph.json'
-    if args.p:
-        p = mp.Pool(args.p)
-    else:  
-        p = mp.Pool()
+    syn = synapseclient.login(silent=True)
+
+    pool = multiprocessing.dummy.Pool(args.n)
+
     nodes = dict()
 
-    for proj in proj_inputs:
-        print 'Getting entities from %s' %proj
-        nodes.update(cg.getEntities(projectId = proj))
-    logging.info('Fetched %i entities' %len(nodes))
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        synapsegraph.logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+        synapsegraph.logger.setLevel(logging.INFO)
 
-    activities = p.map(cg.safeGetActivity, nodes.items())
-    activities = cg.cleanUpActivities(activities)
+    if not args.id:
+        logger.warn("No Project ids given, getting all projects from Synapse.")
+        q = syn.chunkedQuery('select id from project')
+        args.id = itertools.imap(lambda x: x['project.id'], q)
+    for proj in args.id:
+        if proj in synapsegraph.SKIP_LIST:
+            logger.info("Skipping %s" % proj)
+            continue
+        else:
+            logger.info('Processing Project %s' %proj)
+            nodes.update(synapsegraph.processEntities(projectId = proj, pool=pool))
+
+    logger.info('Fetched %i entities' % len(nodes))
+
+    activities = pool.map(synapsegraph.safeGetActivity, nodes.items())
+    activities = synapsegraph.cleanUpActivities(activities)
+
     if len(activities) > 0:
-        print '%i activities found i.e. %f%% entities have provenance' %(len(activities),
-                                                                            float(len(nodes))/len(activities))
+        logger.info('%i activities found i.e. %f%% entities have provenance' %(len(activities),
+                                                                            float(len(nodes))/len(activities)))
     else:
         print 'This project lacks accessible information on provenance'
 
-    edges = cg.buildEdgesfromActivities(nodes, activities)
-    logging.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
-    with open(json_file, 'w') as fp:
-        json.dump(OrderedDict([('vertices', nodes.values()), ('edges', edges)]), fp, indent=4)
+    edges = synapsegraph.buildEdgesfromActivities(nodes, activities)
+    logger.info('I have  %i nodes and %i edges' %(len(nodes), len(edges)))
 
-    if args.l:
-        logging.info('Connecting to Neo4j and authenticating user credentials')
-        with open('credentials.json') as creds:
-            db_info=json.load(creds)
-        authenticate(db_info['machine'], db_info['username'], db_info['password'])
-        db_dir = db_info['machine'] + "/db/data"
-        graph = Graph(db_dir)
-
-        try:
-            ndb.json2neo4j(str(json_file), graph)
-        except:
-            logging.error('Error involving loading data from json file to Neo4j database')
-            raise
+    with sys.stdout as fp:
+        json.dump(OrderedDict([('vertices', map(dict, nodes.values())), ('edges', edges)]), fp, indent=4)
